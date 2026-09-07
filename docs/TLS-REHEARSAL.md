@@ -27,6 +27,12 @@ The automated test proves:
 
 The internal-network test is repeatable CI evidence. It does not replace an organization's controlled-media and physically or logically disconnected acceptance rehearsal.
 
+Docker does not publish host ports from an `--internal` network. Native Linux
+CI therefore performs external hostname, CA, and certificate-serial checks
+against the container's bridge address while in-network ClickHouse requests
+prove application connectivity. The server remains attached only to the
+internal network throughout the disconnected phase.
+
 On Windows, Podman Machine file sharing does not preserve a host `chmod 000`,
 and an internal network does not expose a published port back to the Windows
 host. The script therefore runs disconnected HTTPS from another workload on

@@ -294,13 +294,21 @@ published_native_port() {
 verify_native_hostname() {
     local host=$1
     local port=$2
+    local address=${3:-127.0.0.1}
 
     openssl s_client \
-        -connect "127.0.0.1:${port}" \
+        -connect "${address}:${port}" \
         -servername "${host}" \
         -CAfile "${secret_dir}/root.crt" \
         -verify_hostname "${host}" \
         -verify_return_error </dev/null >/dev/null 2>&1
+}
+
+container_ipv4() {
+    local name=$1
+
+    runtime_call inspect --format \
+        '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${name}"
 }
 
 wait_for_log() {
@@ -360,11 +368,12 @@ https_query() {
     local host=$1
     local port=$2
     local ca_file=$3
+    local address=${4:-127.0.0.1}
 
     curl --silent --show-error --fail --max-time 10 \
         --noproxy '*' \
         --cacert "${ca_file}" \
-        --resolve "${host}:${port}:127.0.0.1" \
+        --resolve "${host}:${port}:${address}" \
         --user "default:${password}" \
         "https://${host}:${port}/?query=SELECT%201"
 }
@@ -552,28 +561,29 @@ run_tls_server "${disconnected_server}" "${disconnected_network}" \
     clickhouse.disconnected.test "${disconnected_volume}" \
     "${secret_dir}/disconnected-active.chain.crt" \
     "${secret_dir}/disconnected-active.key" \
-    --publish 127.0.0.1::8443 \
-    --publish 127.0.0.1::9440 \
     --volume "${runtime_repo_root}/container/config.d/outbound-ca.example.xml:/etc/clickhouse-server/config.d/outbound-ca.xml:ro" \
     --volume "${runtime_secret_dir}/disconnected-ca-bundle.pem:/etc/clickhouse-server/certs/outbound-ca-bundle.pem:ro"
 wait_healthy "${disconnected_server}"
 echo 'Disconnected ClickHouse server is healthy'
-disconnected_port="$(published_https_port "${disconnected_server}")"
-disconnected_native_port="$(published_native_port "${disconnected_server}")"
 if [[ "${windows_podman_machine}" == true ]]; then
     test "$(query_local "${disconnected_endpoint}" \
         "SELECT length(data) > 0 FROM url('https://clickhouse.disconnected.test:8443/?query=SELECT%201', 'RawBLOB', 'data String', headers('X-ClickHouse-User'='default', 'X-ClickHouse-Key'='${password}'))" \
         "${endpoint_password}")" = 1
     echo 'Disconnected HTTPS passed inside the isolated Podman network'
 else
+    disconnected_address="$(container_ipv4 "${disconnected_server}")"
+    disconnected_port=8443
+    disconnected_native_port=9440
     test "$(https_query clickhouse.disconnected.test "${disconnected_port}" \
-        "${secret_dir}/root.crt")" = 1
+        "${secret_dir}/root.crt" "${disconnected_address}")" = 1
     if https_query clickhouse.disconnected.test "${disconnected_port}" \
-        "${secret_dir}/unrelated-root.crt" >/dev/null 2>&1; then
+        "${secret_dir}/unrelated-root.crt" "${disconnected_address}" \
+        >/dev/null 2>&1; then
         fail 'disconnected HTTPS accepted an unrelated CA'
     fi
     if https_query wrong.disconnected.test "${disconnected_port}" \
-        "${secret_dir}/root.crt" >/dev/null 2>&1; then
+        "${secret_dir}/root.crt" "${disconnected_address}" \
+        >/dev/null 2>&1; then
         fail 'disconnected HTTPS accepted the wrong hostname'
     fi
 fi
@@ -586,9 +596,9 @@ if native_tls_query "${disconnected_network}" \
 fi
 if [[ "${windows_podman_machine}" == false ]]; then
     verify_native_hostname clickhouse.disconnected.test \
-        "${disconnected_native_port}"
+        "${disconnected_native_port}" "${disconnected_address}"
     if verify_native_hostname wrong.disconnected.test \
-        "${disconnected_native_port}"; then
+        "${disconnected_native_port}" "${disconnected_address}"; then
         fail 'disconnected native TLS certificate accepted the wrong hostname'
     fi
 fi
@@ -618,12 +628,9 @@ run_tls_server "${disconnected_server}" "${disconnected_network}" \
     clickhouse.disconnected.test "${disconnected_volume}" \
     "${secret_dir}/disconnected-active.chain.crt" \
     "${secret_dir}/disconnected-active.key" \
-    --publish 127.0.0.1::8443 \
-    --publish 127.0.0.1::9440 \
     --volume "${runtime_repo_root}/container/config.d/outbound-ca.example.xml:/etc/clickhouse-server/config.d/outbound-ca.xml:ro" \
     --volume "${runtime_secret_dir}/disconnected-ca-bundle.pem:/etc/clickhouse-server/certs/outbound-ca-bundle.pem:ro"
 wait_healthy "${disconnected_server}"
-disconnected_port="$(published_https_port "${disconnected_server}")"
 disconnected_new_serial="$(openssl x509 \
     -in "${secret_dir}/disconnected-v2.crt" \
     -noout -serial | cut -d= -f2)"
@@ -634,8 +641,9 @@ if [[ "${windows_podman_machine}" == true ]]; then
     disconnected_served_serial="${disconnected_new_serial}"
     echo 'Served renewal serial inspection deferred to native Linux CI'
 else
+    disconnected_address="$(container_ipv4 "${disconnected_server}")"
     disconnected_served_serial="$(openssl s_client \
-        -connect "127.0.0.1:${disconnected_port}" \
+        -connect "${disconnected_address}:8443" \
         -servername clickhouse.disconnected.test \
         -CAfile "${secret_dir}/root.crt" </dev/null 2>/dev/null | \
         openssl x509 -noout -serial | cut -d= -f2)"
@@ -657,12 +665,9 @@ run_tls_server "${disconnected_server}" "${disconnected_network}" \
     clickhouse.disconnected.test "${disconnected_volume}" \
     "${secret_dir}/disconnected-active.chain.crt" \
     "${secret_dir}/disconnected-active.key" \
-    --publish 127.0.0.1::8443 \
-    --publish 127.0.0.1::9440 \
     --volume "${runtime_repo_root}/container/config.d/outbound-ca.example.xml:/etc/clickhouse-server/config.d/outbound-ca.xml:ro" \
     --volume "${runtime_secret_dir}/disconnected-ca-bundle.pem:/etc/clickhouse-server/certs/outbound-ca-bundle.pem:ro"
 wait_healthy "${disconnected_server}"
-disconnected_port="$(published_https_port "${disconnected_server}")"
 if [[ "${windows_podman_machine}" == true ]]; then
     test "$(query_local "${disconnected_endpoint}" \
         "SELECT length(data) > 0 FROM url('https://clickhouse.disconnected.test:8443/?query=SELECT%201', 'RawBLOB', 'data String', headers('X-ClickHouse-User'='default', 'X-ClickHouse-Key'='${password}'))" \
@@ -670,16 +675,17 @@ if [[ "${windows_podman_machine}" == true ]]; then
     disconnected_served_serial="${disconnected_old_serial}"
     echo 'Served rollback serial inspection deferred to native Linux CI'
 else
+    disconnected_address="$(container_ipv4 "${disconnected_server}")"
     disconnected_served_serial="$(openssl s_client \
-        -connect "127.0.0.1:${disconnected_port}" \
+        -connect "${disconnected_address}:8443" \
         -servername clickhouse.disconnected.test \
         -CAfile "${secret_dir}/root.crt" </dev/null 2>/dev/null | \
         openssl x509 -noout -serial | cut -d= -f2)"
 fi
 test "${disconnected_served_serial}" = "${disconnected_old_serial}"
 if [[ "${windows_podman_machine}" == false ]]; then
-    test "$(https_query clickhouse.disconnected.test "${disconnected_port}" \
-        "${secret_dir}/root.crt")" = 1
+    test "$(https_query clickhouse.disconnected.test 8443 \
+        "${secret_dir}/root.crt" "${disconnected_address}")" = 1
 fi
 
 echo "Connected and disconnected CA-issued TLS rehearsal passed"
