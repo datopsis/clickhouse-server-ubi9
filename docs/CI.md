@@ -1,6 +1,6 @@
 # Continuous integration and release automation
 
-This repository treats the built image as the primary deliverable. CI therefore checks repository quality, builds and exercises the container, inventories its contents, and applies two independent vulnerability scanners before release.
+This repository treats the built image as the primary deliverable. CI therefore checks repository quality, builds and exercises the container, inventories its contents, and applies two independent vulnerability scanners before release. Required checks are deliberately few; each one groups related tools so branch protection stays understandable and runner use remains modest.
 
 ## Workflow map
 
@@ -9,9 +9,60 @@ This repository treats the built image as the primary deliverable. CI therefore 
 | `CI` | Pull requests, pushes to `main`, weekly schedule, manual dispatch | Lint, workflow audit, configuration scan, image build, smoke tests, Trivy scan, Syft SBOM, and Grype scan. |
 | `CodeQL` | Workflow changes, weekly schedule, manual dispatch | Static analysis of GitHub Actions with the security-extended query suite. |
 | `OpenSSF Scorecard` | Pushes to `main`, ruleset changes, weekly schedule, manual dispatch | Supply-chain posture analysis, SARIF upload, and public Scorecard publication. |
-| `Release image` | Tags matching `v*` | Multi-architecture publish, digest scans, evidence generation, keyless signing, and GitHub release creation. |
+| `Release image` | Tags matching `v*` | Tag/input/changelog validation, multi-architecture publish, digest scans, evidence generation, keyless signing, and GitHub release creation. |
 
 Workflow-level permissions default to read-only. Write scopes are applied only to jobs that publish code-scanning results, packages, attestations, signatures, or releases. Third-party actions are pinned to full commit SHAs and tracked by Dependabot.
+
+## Analysis layers and why each exists
+
+| Layer | Controls | What it can establish | Important limit |
+| --- | --- | --- | --- |
+| Repository hygiene | pre-commit built-ins and release-tag tests | Parseable YAML/JSON, normalized text, no obvious private keys, merge markers, unsafe symlinks, or oversized additions; release identifiers match image inputs and changelog state. | Pattern checks do not prove that no secret exists. GitHub secret scanning and push protection provide the native enforcement layer. |
+| Source-specific lint | ShellCheck and Hadolint | Common shell defects and unsafe or wasteful container-build patterns. | These are static rules, not runtime evidence. |
+| Workflow security | Actionlint, Zizmor, and CodeQL `actions` with `security-extended` | Workflow syntax, dangerous expressions, excessive permissions, untrusted checkout/data flows, artifact risks, and immutable references. | CodeQL runs on workflow changes and a schedule; Zizmor runs in every `lint` job. |
+| Build configuration | Trivy configuration scan | High/critical Containerfile and infrastructure misconfigurations. | A clean configuration scan says nothing about packages in the built image. |
+| Runtime behavior | Buildx plus `tests/smoke.sh` | The exact test image starts and stops correctly under production-oriented restrictions and supports documented initialization/authentication behavior. | Hosted-runner tests do not replace native-architecture and OpenShift release qualification. |
+| Image vulnerabilities | Trivy image scan | No fixed high/critical findings according to Trivy's current databases and vendor severity selection. | `ignore-unfixed` intentionally leaves unfixed risk for human release review. |
+| Independent inventory and scan | Syft plus Grype | SPDX inventory of the tested image and a second vulnerability matcher/database; fixed high/critical findings block. | Overlap is intentional, but scanner agreement is not proof of absence. |
+| Supply-chain posture | OpenSSF Scorecard | Repository and build-pipeline practice signals published independently. | Historical and popularity signals improve only through genuine project operation. |
+| Release integrity | BuildKit attestations, Cosign, GHCR, and GitHub Releases | Digest-bound multi-architecture artifact, SBOM/provenance evidence, keyless signature, and durable release assets. | The tag workflow publishes before post-build scans; a failed candidate must be quarantined or removed. |
+
+No additional general-purpose scanner is currently justified. Dependency Review has little useful input without a supported package manifest; another image CVE scanner would duplicate Trivy and Grype; another secret action would duplicate GitHub secret scanning and the private-key hook; and a generic SAST action would add little beyond ShellCheck, CodeQL Actions, and Zizmor for this shell/container repository. Reconsider when the repository gains a new language, manifest, deployment format, or credible fuzz target. See [ENDOR.md](ENDOR.md) for the conditional Endor Labs adoption decision.
+
+## Pull request and merge process
+
+1. A pull request starts the two required checks: `lint` and `image`. Workflow-file changes also start CodeQL.
+2. Reviewers inspect the diff, check annotations, scanner summaries, smoke-test version, and the retained SBOM/SARIF. They confirm skipped steps are expected for the event and review warnings or ignored findings.
+3. The active `main` ruleset requires a pull request, resolved review threads, and the latest `lint` and `image` results before merge; it also blocks deletion and force pushes. Required approving reviews remain deliberately disabled until the post-first-release review described in [ROADMAP.md](ROADMAP.md).
+4. A merge starts `CI` on the exact `main` commit. Workflow changes start CodeQL, and every main push refreshes Scorecard. These post-merge runs are reviewed because merge-commit context, secrets, permissions, and SARIF publication differ from pull requests.
+5. Weekly schedules refresh time-sensitive vulnerability and workflow analysis even when source has not changed. Manual dispatch supports investigation; it is not a substitute for the pull-request checks.
+6. Only a validated annotated container-version tag starts a release. The workflow verifies that the tag's ClickHouse and UBI versions match `Containerfile` and that the changelog has a dated matching section before publishing.
+
+Concurrency cancels superseded CI, CodeQL, and Scorecard work for the same ref. Releases are never automatically cancelled. Job timeouts bound stuck or compromised work without hiding a failed control.
+
+## Enforced GitHub settings
+
+Repository configuration is part of the security boundary, even though it is not stored in Git:
+
+- Actions are enabled, the default `GITHUB_TOKEN` permission is read-only, and workflows cannot approve pull requests.
+- GitHub requires third-party Actions to be referenced by a full commit SHA. Workflow files also keep the release tag in a comment for review and Dependabot updates.
+- The `Protect main` ruleset requires pull requests, resolved review threads, and successful, up-to-date `lint` and `image` checks; it prevents branch deletion and non-fast-forward updates. The required approval count is intentionally zero for now.
+- Secret scanning, push protection, Dependabot security updates, and private vulnerability reporting are enabled.
+- Workflow permissions are narrowed per job; only code-scanning publication, OIDC signing, package publication, and release creation receive write scopes.
+
+Audit these settings before each release and after organization policy changes. A file review cannot detect a disabled ruleset or broadened repository-level token policy.
+
+## Reviewing a result rather than a color
+
+For every required run, verify the event and head SHA first. Then review the following evidence:
+
+- `lint`: every hook and the release-tag test ran, Zizmor audited every workflow, and there are no warnings or annotations hidden behind a successful wrapper.
+- `image`: the configuration scan count, ClickHouse version printed by the smoke suite, Trivy target/OS/package count and result count, SBOM package count, and Grype found-versus-ignored counts.
+- `CodeQL` and Scorecard: analysis covered the intended files, SARIF processing completed, and the Security tab has no new open alert. A successful upload is not the same as zero findings.
+- skipped steps: PR SARIF publication is intentionally skipped to avoid permission failures from untrusted forks; it runs on `main`. A skipped build, smoke test, or scanner is not acceptable.
+- warnings: Trivy may use another vendor's severity when Red Hat data is absent. Grype's `only-fixed` option can ignore real but currently unfixable findings. Review both against Red Hat and ClickHouse advisories before a release.
+
+Record accepted findings in the release pull request with the advisory, affected package, architecture, fix availability, rationale, owner, compensating control, and expiry. Do not rerun until a transient failure turns green or treat an empty SARIF file as proof that the scanner evaluated every risk category.
 
 ## Image security pipeline
 
@@ -19,9 +70,9 @@ The image job runs these controls in order:
 
 1. **Trivy configuration scan** checks the `Containerfile`, Compose configuration, and repository infrastructure configuration for high and critical misconfigurations.
 2. **Build and smoke tests** exercise startup, authentication, initialization, persistence, shutdown, read-only operation, dropped capabilities, and arbitrary UIDs.
-3. **Trivy image scan** blocks fixed high and critical operating-system or application vulnerabilities.
+3. **Trivy image scan** blocks fixed high and critical operating-system or application vulnerabilities and reports its detected OS and package count for review.
 4. **Syft inventory** generates `clickhouse-server-ubi9.spdx.json` in SPDX JSON format from the tested image.
-5. **Grype SBOM scan** scans that exact SPDX document and blocks fixed high and critical vulnerabilities.
+5. **Grype SBOM scan** scans that exact SPDX document and blocks fixed high and critical vulnerabilities. Its log may also report ignored unfixed matches, which remain part of release review.
 6. **Artifact and SARIF publication** retains the inventory and result for investigation and publishes non-PR Grype results to GitHub code scanning.
 
 Trivy and Grype deliberately overlap. They use different databases and matching logic, so a clean result from one does not replace the other. Both gates ignore vulnerabilities without an upstream fix; unfixed findings still require periodic review before release. Scanner disagreements should be investigated against the vendor advisory and documented if accepted.

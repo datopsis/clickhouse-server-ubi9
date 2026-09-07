@@ -15,6 +15,12 @@ The workflow follows the restrictions required for published Scorecard results: 
 
 The separate `CodeQL` workflow performs genuine static analysis of this repository's GitHub Actions workflows with the `security-extended` query suite. ShellCheck, Hadolint, Actionlint, Zizmor, Trivy, Syft, and Grype remain in CI because CodeQL does not replace their container-, inventory-, and shell-specific coverage.
 
+## Where to view current results
+
+The current public score and per-check details are in the [OpenSSF Scorecard viewer](https://securityscorecards.dev/viewer/?uri=github.com/datopsis/clickhouse-server-ubi9). The [OpenSSF Scorecard workflow history](https://github.com/datopsis/clickhouse-server-ubi9/actions/workflows/scorecard.yml) shows each run and exposes its downloadable SARIF artifact for five days. Uploaded findings are also available under the repository's **Security > Code scanning** page to users with the required GitHub access.
+
+This file documents the repository's policy, controls, initial baseline, and expected score movement. It is not a copy of the live report; use the viewer or the latest workflow run for current results.
+
 ## Baseline and expected movement
 
 The initial local measurement on 2026-09-06 used Scorecard 5.5.0 against commit `848ddb21e9b41a9adef09da015cc19fabd71bc66` and scored **5.2/10**. A new repository starts low because several checks depend on historical evidence rather than files.
@@ -22,7 +28,7 @@ The initial local measurement on 2026-09-06 used Scorecard 5.5.0 against commit 
 | Check | Baseline | Repository control or next action |
 | --- | ---: | --- |
 | Binary-Artifacts | 10 | Keep generated binaries and archives out of Git. |
-| Branch-Protection | 0 | Configure the `main` ruleset described below after the required checks exist. |
+| Branch-Protection | 0 | The active ruleset now requires pull requests, resolved threads, and up-to-date `lint` and `image` checks. A 2026-09-06 verification run scored 4; remaining points require the deliberately deferred review controls below. |
 | CI-Tests | N/A | Merge changes through pull requests with the `lint` and `image` jobs passing. |
 | CII-Best-Practices | 0 | Register the project at Best Practices when its public project details are ready. |
 | Code-Review | 0 | Use reviewed pull requests; direct commits do not create review evidence. |
@@ -44,23 +50,18 @@ Scores can change when Scorecard changes its checks or when repository history c
 
 ## Required `main` ruleset
 
-Repository rules are GitHub settings and cannot be represented by a committed file. The active `Protect main` ruleset currently targets the default branch, blocks force pushes and deletion, and has no bypass actors. This establishes the safe Tier 1 controls without preventing a solo maintainer from working.
+Repository rules are GitHub settings and cannot be represented by a committed file. The active `Protect main` ruleset targets the default branch, requires a pull request and resolved review threads, requires successful and up-to-date `lint` and `image` checks, blocks force pushes and deletion, and has no bypass actors. Required approvals remain zero so either maintainer can contribute without needing two other available people.
 
 To reach the highest Scorecard branch-protection tier, extend the ruleset with:
 
-- pull requests required before merging;
 - at least two approvals;
 - stale approvals dismissed when new commits are pushed;
 - approval required for the most recent reviewable push;
-- Code Owner review required, using `.github/CODEOWNERS`;
-- conversations resolved before merging;
-- required status checks `lint`, `image`, and `Analyze GitHub Actions`;
-- branches required to be up to date before merging; and
-- administrator enforcement, retaining no bypass actors.
+- Code Owner review required, using `.github/CODEOWNERS`.
 
 These settings match the highest Scorecard branch-protection tier. A second collaborator is now present, but required review enforcement is intentionally deferred for the first release at the maintainer's request. Two independent approvals would require at least three regularly available maintainers to avoid deadlocking an author's pull request. The current exception and revisit point are tracked in [ROADMAP.md](ROADMAP.md); never enable or weaken the review rules merely to change a score.
 
-After changing the ruleset, manually run both `CI` and `CodeQL`, then trigger `OpenSSF Scorecard`. Confirm the required-check names against GitHub's ruleset UI because GitHub derives them from completed check runs.
+After changing the ruleset, manually run the affected workflows, then trigger `OpenSSF Scorecard`. Confirm the required-check names against GitHub's ruleset UI because GitHub derives them from completed check runs. `Analyze GitHub Actions` is not required because its path-filtered workflow intentionally does not run on ordinary pull requests; making a conditional check required would block those changes.
 
 ## GitHub security settings
 
@@ -76,9 +77,9 @@ Secret scanning, push protection, Dependabot security updates, and private vulne
 
 ## Pull request and release practice
 
-All normal changes should enter `main` through reviewed pull requests. Reviewers should verify pinned dependency updates, security-sensitive workflow permissions, container provenance, and changelog entries. Emergency direct pushes should be exceptional and documented.
+All changes to `main` must enter through pull requests with the required checks. Reviewers should verify pinned dependency updates, security-sensitive workflow permissions, container provenance, and changelog entries. An emergency that requires relaxing the ruleset must be time-bounded, approved by a maintainer, recorded in the pull request, and reverted immediately afterward.
 
-Release tags use `v<clickhouse-version>-ubi<ubi-version>-<packaging-revision>`. The tag workflow publishes an immutable multi-architecture image, scans it with Trivy and Grype, generates a downloadable Syft SBOM, attaches OCI SBOM and provenance attestations, signs the digest with GitHub OIDC, and creates a GitHub release with:
+Release identifiers, version increments, and the treatment of repository-only changes are defined in [VERSION.md](VERSION.md). The tag workflow publishes an immutable multi-architecture image, scans it with Trivy and Grype, generates a downloadable Syft SBOM, attaches OCI SBOM and provenance attestations, signs the digest with GitHub OIDC, and creates a GitHub release with:
 
 - `image.spdx.json`, the Syft-generated SPDX JSON inventory;
 - `image.sigstore.json`, the keyless signature verification bundle; and

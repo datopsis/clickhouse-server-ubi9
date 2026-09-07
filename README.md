@@ -117,7 +117,7 @@ The smoke suite verifies startup with a read-only root filesystem and no capabil
 1. Update and locally test the versions and digests in `Containerfile`.
 2. Merge the change to `main` after CI passes.
 3. Complete the release gates in [docs/ROADMAP.md](docs/ROADMAP.md).
-4. Create a tag such as `v26.8.2.7-ubi9.8-1`.
+4. Choose the next release version according to [docs/VERSION.md](docs/VERSION.md), validate it with `bash scripts/validate-release-tag.sh <tag>`, and create its tag, such as `v26.8.2.7-ubi9.8-1`.
 5. Push the tag. GitHub Actions builds both architectures, scans the image with Trivy and Grype, publishes it to GHCR, attaches SBOM and provenance attestations, signs the resulting digest, and creates a GitHub release containing the SPDX SBOM, Sigstore bundle, and provenance evidence.
 
 Verify a release with GitHub as the keyless identity provider:
@@ -135,7 +135,7 @@ ClickHouse commonly benefits from `nofile=262144:262144`. Optional capabilities 
 
 Treat `/var/lib/clickhouse` as durable state, back it up according to your ClickHouse topology, and pin production deployments to an image digest rather than a mutable tag.
 
-See [SECURITY.md](SECURITY.md) for vulnerability reporting and the support policy. Contributor references include the [first-release roadmap](docs/ROADMAP.md), [CI and artifact design](docs/CI.md), [badge policy](docs/BADGING.md), and [OpenSSF Scorecard controls](docs/OPENSSF_SCORECARD.md).
+See [SECURITY.md](SECURITY.md) for vulnerability reporting and the support policy. Contributor references include the [versioning and release standard](docs/VERSION.md), [first-release roadmap](docs/ROADMAP.md), [CI and security process](docs/CI.md), [Endor Labs posture](docs/ENDOR.md), [badge policy](docs/BADGING.md), and [OpenSSF Scorecard controls](docs/OPENSSF_SCORECARD.md).
 
 ## License
 

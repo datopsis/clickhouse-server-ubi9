@@ -26,7 +26,7 @@ This roadmap is the release gate for the first supported image. A checked item m
 
 ### Release mechanics and documentation
 
-- [ ] Choose the first tag using `v<clickhouse-version>-ubi<ubi-version>-<packaging-revision>`.
+- [ ] Choose and validate the first tag according to [VERSION.md](VERSION.md).
 - [ ] Rehearse the release workflow in a non-production package or with a disposable pre-release tag, then remove test artifacts through the GitHub UI.
 - [ ] Confirm the GHCR package is public and its description, source, documentation, and license metadata point to this repository.
 - [ ] Confirm release assets include `image.spdx.json`, `image.sigstore.json`, and `image.intoto.jsonl`.
@@ -45,7 +45,7 @@ This roadmap is the release gate for the first supported image. A checked item m
 
 ## Deliberately deferred controls
 
-- **Enforced pull-request reviews:** a second collaborator has been added, but required reviews, Code Owner approval, and two-approval enforcement remain disabled at the maintainer's request. The active ruleset must continue to prevent deletion and force pushes. Revisit this after the first release; do not enable it as part of unrelated automation.
+- **Enforced pull-request approvals:** a second collaborator has been added, but required approvals and Code Owner approval remain disabled at the maintainer's request. The active ruleset requires a pull request, resolved threads, and the `lint` and `image` checks and prevents deletion and force pushes. Revisit approval enforcement after the first release; do not enable it as part of unrelated automation.
 - **Two independent approvals:** this requires at least three regularly available maintainers to avoid deadlocking a contributor's own pull request. Reassess when the contributor pool supports it.
 - **Fuzzing:** there is currently no credible parser or executable fuzz target owned by this packaging repository.
 

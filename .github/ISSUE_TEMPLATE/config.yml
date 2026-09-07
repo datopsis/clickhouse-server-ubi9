@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a vulnerability privately
+    url: https://github.com/datopsis/clickhouse-server-ubi9/security/advisories/new
+    about: Never disclose a suspected vulnerability in a public issue.
+  - name: ClickHouse upstream support
+    url: https://github.com/ClickHouse/ClickHouse/issues
+    about: Report behavior that reproduces in an official ClickHouse distribution upstream.
