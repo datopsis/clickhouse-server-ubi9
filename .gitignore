@@ -3,3 +3,5 @@
 *.log
 .env
 .DS_Store
+.pre-commit-cache/
+.smoke-secrets.*/

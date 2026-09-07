@@ -22,6 +22,8 @@ RUN microdnf install -y dnf gzip tar \
         --setopt=install_weak_deps=0 \
         --setopt=keepcache=0 \
         bash ca-certificates coreutils-single gzip tzdata \
+    && dnf clean all \
+    && microdnf clean all \
     && arch="${TARGETARCH:-}" \
     && if [ -z "${arch}" ]; then \
          case "$(uname -m)" in \

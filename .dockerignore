@@ -1,5 +1,7 @@
 .git
 .github
+.pre-commit-cache
+.smoke-secrets.*
 .idea
 .vscode
 docs

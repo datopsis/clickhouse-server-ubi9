@@ -13,7 +13,7 @@ This is an independent Datopsis packaging project. It is not an official ClickHo
 - Compatible with a read-only root filesystem
 - Requires no Linux capabilities for its baseline configuration
 - Restricts the default user to localhost unless a password is supplied
-- CI smoke tests and blocking Trivy scans for fixed high and critical vulnerabilities
+- CI smoke tests, repository linting, workflow auditing, and blocking Trivy scans for fixed high and critical vulnerabilities
 - Multi-architecture release images for `linux/amd64` and `linux/arm64`
 - Keyless Cosign signatures, SBOM attestations, and build provenance on tagged releases
 
@@ -71,6 +71,16 @@ Persistent data belongs at `/var/lib/clickhouse`. The image writes generated use
 
 ## Build and test
 
+Install the pinned development checks and Git hooks once per clone:
+
+```console
+python -m pip install pre-commit==4.6.2
+pre-commit install --install-hooks
+pre-commit run --all-files
+```
+
+The hooks normalize text files to LF, reject common repository mistakes and private keys, lint shell scripts and the `Containerfile`, audit GitHub Actions syntax, and reject Claude co-author trailers in commit messages. The same checks run in CI. `.gitattributes` enforces LF in Git regardless of the contributor's operating system.
+
 Docker:
 
 ```console
@@ -90,6 +100,8 @@ CONTAINER_RUNTIME=podman \
 ```
 
 Build-time arguments are `CLICKHOUSE_VERSION`, `CLICKHOUSE_CHANNEL`, `UBI_MINIMAL_IMAGE`, and `UBI_MICRO_IMAGE`. Release builds should retain immutable UBI digests and an exact ClickHouse version.
+
+The smoke suite verifies startup with a read-only root filesystem and no capabilities, package-manager absence, authenticated local and network queries, first-start initialization, persistent-data restarts, password-file support, the passwordless network restriction, graceful shutdown, and operation under an arbitrary OpenShift-style UID.
 
 ## Release process
 
