@@ -44,6 +44,9 @@ jobs:
 
   image:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - name: Check out repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -86,3 +89,43 @@ jobs:
           exit-code: "1"
           ignore-unfixed: true
           severity: CRITICAL,HIGH
+
+      - name: Generate SPDX SBOM with Syft
+        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+        with:
+          image: ghcr.io/datopsis/clickhouse-server-ubi9:test
+          format: spdx-json
+          output-file: clickhouse-server-ubi9.spdx.json
+          syft-version: v1.51.1
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Scan Syft SBOM with Grype
+        id: grype
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
+        with:
+          sbom: clickhouse-server-ubi9.spdx.json
+          output-format: sarif
+          output-file: grype.sarif
+          severity-cutoff: high
+          only-fixed: true
+          fail-build: true
+          grype-version: v0.118.0
+
+      - name: Retain security artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: image-security-${{ github.sha }}
+          path: |
+            clickhouse-server-ubi9.spdx.json
+            grype.sarif
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Publish Grype findings to code scanning
+        if: ${{ always() && github.event_name != 'pull_request' && hashFiles('grype.sarif') != '' }}
+        uses: github/codeql-action/upload-sarif@f205ea1c3313d32999d8d6a48b4f6530d4437b38 # v4.37.4
+        with:
+          sarif_file: grype.sarif
+          category: grype-image

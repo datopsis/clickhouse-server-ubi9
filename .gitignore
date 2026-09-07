@@ -5,3 +5,8 @@
 .DS_Store
 .pre-commit-cache/
 .smoke-secrets.*/
+/clickhouse-server-ubi9.spdx.json
+/grype.sarif
+/image.intoto.jsonl
+/image.sigstore.json
+/image.spdx.json

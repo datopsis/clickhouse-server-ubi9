@@ -13,7 +13,7 @@ The `OpenSSF Scorecard` workflow runs on changes to `main`, branch-protection ch
 
 The workflow follows the restrictions required for published Scorecard results: no workflow-level environment, read-only top-level permissions, and write permissions only on the analysis job. All actions are pinned to immutable commits and maintained by Dependabot.
 
-The separate `CodeQL` workflow performs genuine static analysis of this repository's GitHub Actions workflows with the `security-extended` query suite. ShellCheck, Hadolint, Actionlint, Zizmor, and Trivy remain in CI because CodeQL does not replace their container- and shell-specific coverage.
+The separate `CodeQL` workflow performs genuine static analysis of this repository's GitHub Actions workflows with the `security-extended` query suite. ShellCheck, Hadolint, Actionlint, Zizmor, Trivy, Syft, and Grype remain in CI because CodeQL does not replace their container-, inventory-, and shell-specific coverage.
 
 ## Baseline and expected movement
 
@@ -38,7 +38,7 @@ The initial local measurement on 2026-09-06 used Scorecard 5.5.0 against commit 
 | Security-Policy | 10 | `SECURITY.md` documents private reporting and disclosure expectations. |
 | Signed-Releases | N/A | The first tagged GitHub release will include `.sigstore.json` and `.intoto.jsonl` evidence. |
 | Token-Permissions | 0 | Write access is moved from workflow scope to the release job; reruns should report 10. |
-| Vulnerabilities | 10 | Trivy gates fixed high/critical findings, while Scorecard also checks OSV data. |
+| Vulnerabilities | 10 | Trivy and Grype gate fixed high/critical findings, while Scorecard also checks OSV data. |
 
 Scores can change when Scorecard changes its checks or when repository history changes. Review the individual findings instead of treating the aggregate number as a permanent guarantee.
 
@@ -58,7 +58,7 @@ To reach the highest Scorecard branch-protection tier, extend the ruleset with:
 - branches required to be up to date before merging; and
 - administrator enforcement, retaining no bypass actors.
 
-These settings match the highest Scorecard branch-protection tier. Requiring two independent approvals is unsuitable for a repository with only one active maintainer because it prevents that maintainer from merging. Until at least two additional trusted reviewers are available, use one approval or defer the review requirement and record the accepted score impact. Never weaken rules merely to make automation convenient.
+These settings match the highest Scorecard branch-protection tier. A second collaborator is now present, but required review enforcement is intentionally deferred for the first release at the maintainer's request. Two independent approvals would require at least three regularly available maintainers to avoid deadlocking an author's pull request. The current exception and revisit point are tracked in [ROADMAP.md](ROADMAP.md); never enable or weaken the review rules merely to change a score.
 
 After changing the ruleset, manually run both `CI` and `CodeQL`, then trigger `OpenSSF Scorecard`. Confirm the required-check names against GitHub's ruleset UI because GitHub derives them from completed check runs.
 
@@ -78,8 +78,9 @@ Secret scanning, push protection, Dependabot security updates, and private vulne
 
 All normal changes should enter `main` through reviewed pull requests. Reviewers should verify pinned dependency updates, security-sensitive workflow permissions, container provenance, and changelog entries. Emergency direct pushes should be exceptional and documented.
 
-Release tags use `v<clickhouse-version>-ubi<ubi-version>-<packaging-revision>`. The tag workflow publishes an immutable multi-architecture image, scans it, attaches OCI SBOM and provenance attestations, signs the digest with GitHub OIDC, and creates a GitHub release with:
+Release tags use `v<clickhouse-version>-ubi<ubi-version>-<packaging-revision>`. The tag workflow publishes an immutable multi-architecture image, scans it with Trivy and Grype, generates a downloadable Syft SBOM, attaches OCI SBOM and provenance attestations, signs the digest with GitHub OIDC, and creates a GitHub release with:
 
+- `image.spdx.json`, the Syft-generated SPDX JSON inventory;
 - `image.sigstore.json`, the keyless signature verification bundle; and
 - `image.intoto.jsonl`, the downloaded in-toto attestations.
 
