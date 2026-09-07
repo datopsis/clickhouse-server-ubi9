@@ -24,7 +24,7 @@ Workflow-level permissions default to read-only. Write scopes are applied only t
 | Runtime behavior | Native GitHub-hosted AMD64 and ARM64 runners, Buildx, and `tests/smoke.sh` | Each architecture's exact test image starts and stops correctly under production-oriented restrictions and supports documented initialization/authentication behavior. Runner and loaded-image assertions prevent emulation or a mislabeled image from being treated as native evidence. | Hosted-runner tests do not replace OpenShift qualification or application-specific performance testing. |
 | Image vulnerabilities | Trivy image scan | No fixed high/critical findings according to Trivy's current databases and vendor severity selection. | `ignore-unfixed` intentionally leaves unfixed risk for human release review. |
 | Independent inventory and scan | Syft plus Grype | SPDX inventory of the tested image and a second vulnerability matcher/database; fixed high/critical findings block. | Overlap is intentional, but scanner agreement is not proof of absence. |
-| Filesystem compliance discovery | Pinned OpenSCAP engine and ComplianceAsCode RHEL 9 STIG profile | Complete architecture-specific inventory of upstream rule results against a root-owner-preserving export; scanner errors block. | STIG is a broad discovery source, not wholesale adoption. Findings are non-blocking until applicability is reviewed and a container-specific tailoring is approved. |
+| Filesystem compliance | Pinned OpenSCAP engine, ComplianceAsCode RHEL 9 content, and reviewed Datopsis tailoring | Architecture-specific results for 36 image-owned rules against a root-owner-preserving export; scanner errors block. | Selected-rule findings remain non-blocking during stabilization. This is neither wholesale STIG adoption nor host/deployment certification. |
 | Supply-chain posture | OpenSSF Scorecard | Repository and build-pipeline practice signals published independently. | Historical and popularity signals improve only through genuine project operation. |
 | Release integrity | BuildKit attestations, Cosign, GHCR, and GitHub Releases | Digest-bound multi-architecture artifact, SBOM/provenance evidence, keyless signature, and durable release assets. | The tag workflow publishes before post-build scans; a failed candidate must be quarantined or removed. |
 
@@ -71,7 +71,7 @@ Each native image matrix job runs these controls in order. AMD64 uses `ubuntu-24
 
 1. **Trivy configuration scan** checks the `Containerfile`, Compose configuration, and repository infrastructure configuration for high and critical misconfigurations.
 2. **Build and runtime tests** exercise startup, authentication, initialization, persistence, shutdown, read-only operation, dropped capabilities, arbitrary UIDs, chained CA-issued HTTPS/native TLS, public/private outbound trust, disconnected isolation, negative certificate cases, renewal, and rollback.
-3. **OpenSCAP discovery** builds a pinned-input UBI scanner, exports but never executes the stopped target, preserves filesystem ownership inside an isolated tmpfs, and evaluates the pinned RHEL 9 STIG profile without network or an engine socket. The profile is an analysis source rather than wholesale control adoption. Findings remain report-only; execution errors block.
+3. **Tailored OpenSCAP evaluation** builds a pinned-input UBI scanner, exports but never executes the stopped target, preserves filesystem ownership inside an isolated tmpfs, and evaluates 36 explicitly selected image-owned rules without network or an engine socket. The initial full RHEL 9 STIG discovery and every selection/exclusion decision are recorded in [SCAP.md](SCAP.md) and the [rule rationale](../security/scap/RULE-RATIONALE.md). Findings remain report-only during stabilization; execution errors block.
 4. **Trivy image scan** blocks fixed high and critical operating-system or application vulnerabilities and reports its detected OS and package count for review.
 5. **Complete SPDX inventory** uses Syft to inventory the tested filesystem and RPM database, then `scripts/augment-spdx.py` declares the three pinned ClickHouse TGZ components that have no RPM metadata. The script takes their version and channel from `Containerfile`, records Apache-2.0 licensing and package identifiers, and fails instead of duplicating a component Syft already found.
 6. **Blocking Grype SBOM scan** scans that exact SPDX document and blocks fixed high and critical vulnerabilities.
@@ -87,7 +87,7 @@ Trivy and Grype deliberately overlap. They use different databases and matching 
 | `clickhouse-server-ubi9-<architecture>.spdx.json` | CI artifact `image-security-<commit>-<architecture>` | 14 days | Package inventory for the exact native AMD64 or ARM64 test image. |
 | `grype-<architecture>.sarif` | Same architecture-specific CI artifact and GitHub code scanning on non-PR runs | 14 days for the downloadable artifact | Machine-readable findings and architecture-specific review evidence. |
 | `grype-all-<architecture>.json` | Architecture-specific CI artifact | 14 days | Complete point-in-time inventory including unfixed Low and Medium matches for human triage. The release workflow separately retains `grype-all.json` for 30 days. |
-| `scap-results-<architecture>/` | Architecture-specific CI artifact | 14 days | Discovery ARF/XCCDF/HTML, full JSON rule inventory, exit code, data-stream hash, scanner version, and RPM versions for the exact target/scanner image IDs. |
+| `scap-results-<architecture>/` | Architecture-specific CI artifact | 14 days | Tailored ARF/XCCDF/HTML, full JSON rule inventory, exit code, data-stream and tailoring hashes, scanner version, and RPM versions for the exact target/scanner image IDs. |
 | `image.spdx.json` | Tag-run artifact and GitHub release asset | 30-day Actions copy; release asset retained with the release | Downloadable inventory for the published digest. |
 | Release `grype.sarif` | Tag-run artifact and GitHub code scanning | 30 days for the downloadable artifact | Point-in-time scan evidence; not attached to the release because vulnerability data ages rapidly. |
 | BuildKit SBOM/provenance and complete SPDX attestation | OCI registry attestations; downloaded together as `image.intoto.jsonl` | Lifetime of the package/release | Registry-native build evidence plus the keyless, digest-bound copy of `image.spdx.json`. |
@@ -113,7 +113,7 @@ CONTAINER_RUNTIME=podman \
   IMAGE="clickhouse-server-ubi9:test-${ARCHITECTURE}" bash tests/smoke.sh
 ```
 
-Build and run the isolated SCAP discovery scanner with the Podman procedure in
+Build and run the isolated tailored SCAP scanner with the Podman procedure in
 [SCAP.md](SCAP.md). It intentionally creates a second tooling image and does
 not alter the ClickHouse deliverable.
 

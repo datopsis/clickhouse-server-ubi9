@@ -41,6 +41,15 @@ class ScapSummaryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "no rule-result"):
             self.inventory("<Benchmark/>")
 
+    def test_reads_explicit_tailoring_selections(self) -> None:
+        tailoring = ROOT / "security" / "scap" / "datopsis-ubi9-micro-tailoring.xml"
+        selections = SCAP_SUMMARY.tailoring_selections(tailoring)
+        self.assertEqual(len(selections), 36)
+        self.assertIn(
+            "xccdf_org.ssgproject.content_rule_file_ownership_binary_dirs",
+            selections,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

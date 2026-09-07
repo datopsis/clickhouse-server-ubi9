@@ -7,13 +7,13 @@ audit daemon, host networking, or machine-wide security policy. Those controls
 belong to the container host or deployment platform and are outside this
 image's control.
 
-The project is therefore establishing a measured baseline first, then will
-maintain a tailored UBI 9 Micro container profile containing only applicable,
+The project therefore established a measured discovery baseline and now
+maintains a tailored UBI 9 Micro container profile containing only applicable,
 image-owned rules. Passing that profile means the inspected image filesystem
 meets the documented rules; it is not a claim that the image, host, OpenShift
 cluster, or complete ClickHouse deployment is CIS- or STIG-certified.
 
-## Implemented discovery baseline
+## Pinned scanner and content
 
 The discovery implementation pins these inputs. An update requires changing
 the values in `Containerfile.scap`, recalculating both hashes, reviewing the
@@ -25,7 +25,8 @@ content changes, and rerunning both native architecture jobs.
 | OpenSCAP engine | UBI AppStream RPM `openscap-scanner-1.3.14-1.el9_8` | The build fails if that exact NEVRA cannot be installed; the complete resulting RPM inventory and `oscap --version` are retained so dependency drift is visible. |
 | ComplianceAsCode content | Release `0.1.82` ZIP | Archive SHA-256 `765e84bdce7f9055f9b9c2dd0ee2b713d4255f8eec94eac6d35ea4973c28919c` is checked before extraction. |
 | RHEL 9 data stream | `ssg-rhel9-ds.xml` from release `0.1.82` | Data-stream SHA-256 `92204daafbf4f38011671ef034fae4cffb48f708516186710346a9ec702a1f8f` is checked at build and recorded at evaluation. |
-| Discovery profile | `xccdf_org.ssgproject.content_profile_stig` | ComplianceAsCode 0.1.82 does not contain a RHEL 9 Standard profile. STIG is used as a broad discovery source because this project must review DISA-derived objectives; the inventory records every result without adopting the profile wholesale. |
+| Discovery profile | `xccdf_org.ssgproject.content_profile_stig` | Used for the initial broad inventory only. ComplianceAsCode 0.1.82 does not contain a RHEL 9 Standard profile. |
+| Tailored profile | `xccdf_org.datopsis_profile_ubi9_micro_container` | Explicitly selects 36 image-owned rules and inherits no upstream profile. Its SHA-256 is recorded for every evaluation. |
 
 Red Hat's public UBI 9 AppStream repositories provide `openscap-scanner` for
 both x86_64 and aarch64, but do not provide `openscap-utils`. Consequently,
@@ -92,7 +93,7 @@ required `image` check.
 
 ## Result semantics and evidence
 
-Discovery is non-blocking only for ordinary `fail`, `notapplicable`, and
+During stabilization, findings are non-blocking only for ordinary `fail`, `notapplicable`, and
 `notchecked` rule results. Failure to build or run the scanner, malformed or
 empty XCCDF, and any `error`, `unknown`, or missing result fail the architecture
 job. This distinction prevents "report-only" from hiding a broken scan.
@@ -103,11 +104,17 @@ Each `image-security-<commit>-<architecture>` artifact includes:
 - `results.xccdf.xml`, the machine-readable evaluation results;
 - `report.html`, the reviewer-oriented report;
 - `summary.json`, a deterministic count and complete rule/result inventory;
+- `tailoring.sha256`, binding the evaluation to the reviewed profile;
 - the OpenSCAP version, exact installed RPMs, data-stream hash, and OpenSCAP
   exit code.
 
 `summary.json` also binds the evidence to the target image ID, scanner image
-ID, architecture, profile, and data-stream SHA-256. It deliberately does not
+ID, architecture, profile, data-stream SHA-256, and tailoring SHA-256. The
+wrapper independently compares the scanner's tailoring hash with the
+repository file and requires the actually evaluated rule IDs to equal all 36
+explicit selections. This catches a stale scanner copy, a misspelled selector,
+or silent profile expansion even if OpenSCAP returns a successful exit status.
+The summary deliberately does not
 label an upstream discovery-profile result as container, host, CIS, or STIG
 certification.
 
@@ -137,26 +144,49 @@ seven discovery failures were:
 - `network_configure_name_resolution`;
 - `package_crypto-policies_installed`.
 
-`security_patches_up_to_date` was `notchecked`. None of these results is an
-adopted container control yet. The next package must inspect the associated
-OVAL logic, distinguish image-owned behavior from absent host facilities,
-compare the result with the current Containerfile/SBOM, and document its
-applicability decision and rationale before selecting or excluding the rule.
-In particular, a profile `pass` is not sufficient evidence that a rule is
-applicable to a minimal container.
+`security_patches_up_to_date` was `notchecked`. The follow-on review selected
+the two program-ownership failures as genuine image-owned defects and excluded
+the remaining findings at the appropriate host, deployment, or
+alternative-evidence boundary. A profile `pass` was not treated as sufficient
+evidence that a rule applies to a minimal container.
 
-## Profile-development method
+## Tailored profile and ownership fix
 
-The upstream RHEL 9 STIG profile is a discovery input, not a statement that
-every rule is applicable or inherited. The discovery implementation provides
-the pinned scan and inventory. The next
-profile-development pull request must:
+The committed profile at
+`security/scap/datopsis-ubi9-micro-tailoring.xml` selects 36 checks covering
+account databases, immutable executable and library ownership/modes,
+world-writable or ungrouped content, legacy trust files, and deliberately
+absent packages. It does not extend the upstream STIG profile, so no upstream
+selection can silently become an adopted image check.
+
+Discovery showed that the ClickHouse TGZ preserved its publisher's UID/GID
+1000 on `/usr/bin/clickhouse` and related files. It also showed that the
+repository copied the entrypoint as UID 101. Both are immutable programs, so
+the Containerfile now normalizes `/runtime/usr` and repository-supplied `/usr`
+assets to `0:0`. ClickHouse still runs as `101:0`; writable data, log,
+configuration, and initialization directories retain their rootless contract.
+Program ownership does not grant the process any additional privilege.
+
+The complete selection and exclusion analysis is in the
+[SCAP rule rationale](../security/scap/RULE-RATIONALE.md). Notably, RHEL system
+crypto policy was not selected because installing its files would not prove
+that the upstream static ClickHouse binary consumes that policy. DNS, runtime
+logs, persistent storage, kernel, SELinux, FIPS mode, and platform facilities
+remain deployment- or host-owned. Patch currency is evaluated through SBOM,
+Trivy, Grype, pinned rebuilds, and vulnerability response rather than an
+in-place package-manager rule.
+
+## Profile maintenance method
+
+The upstream RHEL 9 STIG profile remains a discovery input, not a statement
+that every rule is applicable or inherited. Any profile revision must:
 
 - classify every result as applicable, not applicable, inherited from the
   platform, pass, fail, error, or not checked;
-- commit an XCCDF tailoring file with a Datopsis-specific profile identifier;
-- commit a rationale table mapping each selected rule to the image-owned file,
-  package, account, or permission it evaluates;
+- update the XCCDF tailoring version and deliberately review whether its stable
+  Datopsis profile identifier remains compatible;
+- update the rationale table mapping each selected rule to the image-owned
+  file, package, account, or permission it evaluates;
 - explicitly exclude host-only rules for the kernel, boot loader, partitions,
   mount layout, system services, audit subsystem, host firewall, host sysctls,
   SELinux enforcement mode, and FIPS mode;
@@ -190,7 +220,7 @@ Before enforcement, compare one image digest's `OSCAP_PROBE_ROOT` result with
 facts, applicability, and rule results. This is a qualification cross-check,
 not a reason to give routine GitHub-hosted CI root access.
 
-## Local discovery with Podman
+## Local tailored scan with Podman
 
 Run this only on a native Linux AMD64 or ARM64 host with Podman, Bash, and
 Python 3. Rootless Podman is sufficient if the host supports user namespaces
@@ -219,8 +249,10 @@ SCAP_RESULTS_DIR="scap-results-${ARCHITECTURE}" \
   bash scripts/scap-scan.sh
 ```
 
-Review `summary.json` first, then the HTML report and XML evidence. Confirm
-`rootfs.tar` was removed. Do not commit the generated results. If rootless
+Review `summary.json` first, then the HTML report and XML evidence. Confirm its
+mode is `tailored-stabilization-report-only`, its profile ID is the Datopsis
+profile above, and both hashes match the committed inputs. Confirm `rootfs.tar`
+was removed. Do not commit the generated results. If rootless
 Podman reports that memory limits are unsupported, qualify the host's cgroup
 configuration; do not remove the CI limit without a documented risk review.
 

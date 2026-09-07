@@ -4,6 +4,7 @@ set -Eeuo pipefail
 runtime="${CONTAINER_RUNTIME:-podman}"
 target_image="${IMAGE:-ghcr.io/datopsis/clickhouse-server-ubi9:test}"
 scanner_image="${SCAP_SCANNER_IMAGE:-localhost/datopsis-openscap:0.1.82}"
+profile="xccdf_org.datopsis_profile_ubi9_micro_container"
 architecture="${ARCHITECTURE:-$(uname -m)}"
 results_dir="${SCAP_RESULTS_DIR:-scap-results-${architecture}}"
 
@@ -68,15 +69,25 @@ fi
     --volume "${results_dir}:/results:rw${volume_label}" \
     "${scanner_image}"
 
+tailoring_sha256="$(sha256sum security/scap/datopsis-ubi9-micro-tailoring.xml | cut -d ' ' -f 1)"
+scanner_tailoring_sha256="$(cut -d ' ' -f 1 "${results_dir}/tailoring.sha256")"
+if [[ "${tailoring_sha256}" != "${scanner_tailoring_sha256}" ]]; then
+    echo "Scanner tailoring differs from the committed tailoring" >&2
+    exit 1
+fi
+
 python3 scripts/scap-summary.py \
     --results "${results_dir}/results.xccdf.xml" \
     --output "${results_dir}/summary.json" \
     --architecture "${architecture}" \
-    --profile xccdf_org.ssgproject.content_profile_stig \
+    --profile "${profile}" \
+    --mode tailored-stabilization-report-only \
     --target-image "${target_image}" \
     --target-image-id "${target_image_id}" \
     --scanner-image "${scanner_image}" \
     --scanner-image-id "${scanner_image_id}" \
-    --datastream-sha256 92204daafbf4f38011671ef034fae4cffb48f708516186710346a9ec702a1f8f
+    --datastream-sha256 92204daafbf4f38011671ef034fae4cffb48f708516186710346a9ec702a1f8f \
+    --tailoring-sha256 "${tailoring_sha256}" \
+    --tailoring-file security/scap/datopsis-ubi9-micro-tailoring.xml
 
-echo "SCAP discovery evidence written to ${results_dir}"
+echo "SCAP tailored-profile evidence written to ${results_dir}"

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xccdf:Tailoring xmlns:xccdf="http://checklists.nist.gov/xccdf/1.2"
+                 id="xccdf_org.datopsis.content_tailoring_ubi9_micro_container">
+  <xccdf:benchmark href="ssg-rhel9-ds.xml"/>
+  <xccdf:version time="2026-09-07">1.0.0</xccdf:version>
+  <xccdf:Profile id="xccdf_org.datopsis_profile_ubi9_micro_container">
+    <xccdf:title override="true">Datopsis UBI 9 Micro container filesystem</xccdf:title>
+    <xccdf:description override="true">Image-owned, offline-filesystem checks selected from the pinned ComplianceAsCode RHEL 9 content. This profile does not assess the host, orchestration platform, runtime volumes, or a complete ClickHouse deployment.</xccdf:description>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_accounts_password_all_shadowed_sha512" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_dir_group_ownership_library_dirs" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_dir_ownership_library_dirs" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_dir_permissions_library_dirs" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_dir_perms_world_writable_sticky_bits" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_dir_perms_world_writable_system_owned" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_file_groupowner_etc_group" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_file_groupowner_etc_gshadow" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_file_groupowner_etc_passwd" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_file_groupowner_etc_shadow" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_file_groupownership_system_commands_dirs" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_file_owner_etc_group" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_file_owner_etc_gshadow" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_file_owner_etc_passwd" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_file_owner_etc_shadow" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_file_ownership_binary_dirs" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_file_ownership_library_dirs" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_file_permissions_binary_dirs" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_file_permissions_etc_group" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_file_permissions_etc_gshadow" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_file_permissions_etc_passwd" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_file_permissions_etc_shadow" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_file_permissions_library_dirs" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_file_permissions_ungroupowned" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_gid_passwd_group_same" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_no_host_based_files" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_no_user_host_based_files" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_package_gssproxy_removed" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_package_iprutils_removed" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_package_nfs-utils_removed" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_package_telnet-server_removed" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_package_tftp-server_removed" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_package_tuned_removed" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_package_vsftpd_removed" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_root_permissions_syslibrary_files" selected="true"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_xwindows_remove_packages" selected="true"/>
+  </xccdf:Profile>
+</xccdf:Tailoring>

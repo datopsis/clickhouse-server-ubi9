@@ -12,7 +12,9 @@ ARG TARGETARCH
 WORKDIR /tmp/clickhouse
 
 # Build a small runtime overlay for UBI Micro and verify every ClickHouse archive
-# against the SHA-512 file published beside it by ClickHouse.
+# against the SHA-512 file published beside it by ClickHouse. The TGZs preserve
+# release-archive UID/GID 1000; installed programs are normalized to root while
+# only explicitly writable runtime paths are assigned to 101:0.
 # hadolint ignore=DL3041
 RUN microdnf install -y dnf gzip tar \
     && mkdir -p /runtime \
@@ -47,6 +49,7 @@ RUN microdnf install -y dnf gzip tar \
          tar --extract --gzip --file "${archive}" --strip-components=1 --directory /runtime; \
        done \
     && rm -rf /runtime/install /runtime/var/cache/dnf /runtime/var/log/* \
+    && chown -R 0:0 /runtime/usr \
     && printf 'clickhouse:x:101:0:ClickHouse server:/var/lib/clickhouse:/sbin/nologin\n' >> /runtime/etc/passwd \
     && mkdir -p \
          /runtime/docker-entrypoint-initdb.d \
@@ -81,9 +84,9 @@ COPY --from=builder /runtime/usr/ /usr/
 COPY --from=builder /runtime/etc/ /etc/
 COPY --from=builder /runtime/var/ /var/
 COPY --from=builder /runtime/docker-entrypoint-initdb.d/ /docker-entrypoint-initdb.d/
-COPY --chown=101:0 --chmod=0755 container/entrypoint.sh /usr/local/bin/clickhouse-entrypoint
-COPY --chown=101:0 --chmod=0444 container/health-client.xml /usr/local/share/clickhouse-health-client.xml
-COPY --chown=101:0 --chmod=0644 container/config.d/container.xml /etc/clickhouse-server/config.d/container.xml
+COPY --chown=0:0 --chmod=0755 container/entrypoint.sh /usr/local/bin/clickhouse-entrypoint
+COPY --chown=0:0 --chmod=0444 container/health-client.xml /usr/local/share/clickhouse-health-client.xml
+COPY --chown=0:0 --chmod=0644 container/config.d/container.xml /etc/clickhouse-server/config.d/container.xml
 
 ENV LANG="C.UTF-8" \
     TZ="UTC" \
