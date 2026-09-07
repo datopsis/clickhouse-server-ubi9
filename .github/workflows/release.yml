@@ -89,6 +89,12 @@ jobs:
           upload-artifact: false
           upload-release-assets: false
 
+      - name: Add declared ClickHouse TGZ components to SPDX SBOM
+        run: >-
+          python scripts/augment-spdx.py
+          --input image.spdx.json
+          --output image.spdx.json
+
       - name: Scan Syft SBOM with Grype
         uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
         with:
@@ -98,6 +104,20 @@ jobs:
           severity-cutoff: high
           only-fixed: true
           fail-build: true
+          cache-db: true
+          grype-version: v0.118.0
+
+      - name: Record all Grype findings
+        if: ${{ always() && hashFiles('image.spdx.json') != '' }}
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
+        with:
+          sbom: image.spdx.json
+          output-format: json
+          output-file: grype-all.json
+          severity-cutoff: negligible
+          only-fixed: false
+          fail-build: false
+          cache-db: true
           grype-version: v0.118.0
 
       - name: Retain release security artifacts
@@ -108,6 +128,7 @@ jobs:
           path: |
             image.spdx.json
             grype.sarif
+            grype-all.json
           if-no-files-found: warn
           retention-days: 30
 
@@ -120,6 +141,13 @@ jobs:
 
       - name: Install Cosign
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Attest complete SPDX SBOM with GitHub OIDC
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: >-
+          cosign attest --yes --predicate image.spdx.json --type spdxjson
+          "${IMAGE}@${DIGEST}"
 
       - name: Sign image with GitHub OIDC
         env:

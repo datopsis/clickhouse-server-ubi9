@@ -110,7 +110,7 @@ CONTAINER_RUNTIME=podman \
 
 Build-time arguments are `CLICKHOUSE_VERSION`, `CLICKHOUSE_CHANNEL`, `UBI_MINIMAL_IMAGE`, and `UBI_MICRO_IMAGE`. Release builds should retain immutable UBI digests and an exact ClickHouse version.
 
-The smoke suite verifies startup with a read-only root filesystem and no capabilities, package-manager absence, authenticated local and network queries, first-start initialization, persistent-data restarts, password-file support, the passwordless network restriction, graceful shutdown, and operation under an arbitrary OpenShift-style UID.
+The smoke suite verifies startup with a read-only root filesystem and no capabilities, package-manager absence, authenticated local and network queries, first-start initialization, persistent-data restarts, password-file support, the passwordless network restriction, TLS-only native initialization and health, graceful shutdown, and operation under an arbitrary OpenShift-style UID. It requires `openssl` on the test host to create an ephemeral TLS fixture.
 
 ## Release process
 
@@ -118,12 +118,17 @@ The smoke suite verifies startup with a read-only root filesystem and no capabil
 2. Merge the change to `main` after CI passes.
 3. Complete the release gates in [docs/ROADMAP.md](docs/ROADMAP.md).
 4. Choose the next release version according to [docs/VERSION.md](docs/VERSION.md), validate it with `bash scripts/validate-release-tag.sh <tag>`, and create its tag, such as `v26.8.2.7-ubi9.8-1`.
-5. Push the tag. GitHub Actions builds both architectures, scans the image with Trivy and Grype, publishes it to GHCR, attaches SBOM and provenance attestations, signs the resulting digest, and creates a GitHub release containing the SPDX SBOM, Sigstore bundle, and provenance evidence.
+5. Push the tag. GitHub Actions builds both architectures, scans the image with Trivy and Grype, publishes it to GHCR, attaches the complete SPDX SBOM and build provenance as attestations, signs the resulting digest, and creates a GitHub release containing the SPDX SBOM, Sigstore bundle, and in-toto evidence.
 
 Verify a release with GitHub as the keyless identity provider:
 
 ```console
 cosign verify \
+  --certificate-identity-regexp='https://github.com/datopsis/clickhouse-server-ubi9/.github/workflows/release.yml@refs/tags/.*' \
+  --certificate-oidc-issuer='https://token.actions.githubusercontent.com' \
+  ghcr.io/datopsis/clickhouse-server-ubi9@sha256:<digest>
+
+cosign verify-attestation --type spdxjson \
   --certificate-identity-regexp='https://github.com/datopsis/clickhouse-server-ubi9/.github/workflows/release.yml@refs/tags/.*' \
   --certificate-oidc-issuer='https://token.actions.githubusercontent.com' \
   ghcr.io/datopsis/clickhouse-server-ubi9@sha256:<digest>
@@ -135,8 +140,10 @@ ClickHouse commonly benefits from `nofile=262144:262144`. Optional capabilities 
 
 Treat `/var/lib/clickhouse` as durable state, back it up according to your ClickHouse topology, and pin production deployments to an image digest rather than a mutable tag.
 
-See [SECURITY.md](SECURITY.md) for vulnerability reporting and the support policy. Contributor references include the [versioning and release standard](docs/VERSION.md), [first-release roadmap](docs/ROADMAP.md), [CI and security process](docs/CI.md), [Endor Labs posture](docs/ENDOR.md), [badge policy](docs/BADGING.md), and [OpenSSF Scorecard controls](docs/OPENSSF_SCORECARD.md).
+Before a production rollout, follow the [production deployment guide](docs/PRODUCTION.md). Configure inbound encryption and public/private outbound trust with the [TLS guide](docs/TLS.md). The secure ClickHouse ports (`8443`, `9440`, and `9010`) are configuration choices and are not enabled by default.
+
+See [SECURITY.md](SECURITY.md) for vulnerability reporting and the support policy. Contributor references include the [vulnerability-management process](docs/VULNERABILITY-MANAGEMENT.md), [official-image comparison](docs/IMAGE-COMPARISON.md), [versioning and release standard](docs/VERSION.md), [first-release roadmap](docs/ROADMAP.md), [CI and security process](docs/CI.md), [Endor Labs posture](docs/ENDOR.md), [badge policy](docs/BADGING.md), and [OpenSSF Scorecard controls](docs/OPENSSF_SCORECARD.md).
 
 ## License
 
-The packaging code in this repository is licensed under Apache License 2.0. ClickHouse and Red Hat UBI remain subject to their respective upstream licenses and terms.
+The packaging code and documentation in this repository are licensed under Apache License 2.0. ClickHouse, Red Hat UBI, and their component packages remain subject to their respective upstream licenses and terms. See [third-party software and terms](THIRD_PARTY_NOTICES.md) for the distribution notices and release-review requirements.

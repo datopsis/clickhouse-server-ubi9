@@ -18,3 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - A documented container and repository versioning and release standard.
 - CI security-layer, enforcement, result-review, and Endor Labs guidance.
 - Structured bug reporting and pull-request review checklists.
+- Production, TLS, disconnected-deployment, vulnerability-triage, upstream-license, and official-image comparison documentation.
+- Entrypoint initialization and health checks over TLS-only native-port configurations.
+- Complete Grype JSON inventories, including unfixed findings, retained beside the fixed High/Critical blocking result in CI and release runs.
+- Explicit ClickHouse TGZ component records in SPDX inventories and a keyless, digest-bound complete SPDX release attestation.

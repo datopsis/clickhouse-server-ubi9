@@ -4,6 +4,14 @@ This roadmap is the release gate for the first supported image. A checked item m
 
 ## Release blockers
 
+### Immediate priorities
+
+1. Triage the current unfixed matches according to [VULNERABILITY-MANAGEMENT.md](VULNERABILITY-MANAGEMENT.md), then rebuild on the newest reviewed UBI digests and retain the before/after evidence.
+2. Validate [TLS.md](TLS.md) with CA-issued certificates for HTTPS and native TCP, including rotation and a fully disconnected rehearsal.
+3. Execute [PRODUCTION.md](PRODUCTION.md) on native `amd64`, native `arm64`, and OpenShift, recording resource, storage, backup/restore, shutdown, and recovery evidence.
+4. Complete the ClickHouse/UBI notice and SBOM review described in [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md).
+5. Publish the first signed GHCR release only after every blocker below is complete. Reconsider Docker Hub and paid security services after that release has real consumer demand.
+
 ### Image behavior and compatibility
 
 - [ ] Run the complete smoke suite on the final ClickHouse and UBI digests.

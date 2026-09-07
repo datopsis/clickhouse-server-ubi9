@@ -9,6 +9,7 @@ prefix="clickhouse-ubi9-smoke-${run_id}"
 network="${prefix}-network"
 data_volume="${prefix}-data"
 arbitrary_volume="${prefix}-arbitrary-data"
+tls_volume="${prefix}-tls-data"
 secret_dir="$(mktemp -d "${repo_root}/.smoke-secrets.XXXXXX")"
 password="smoke-test-password"
 
@@ -17,13 +18,16 @@ restart="${prefix}-restart"
 passwordless="${prefix}-passwordless"
 password_file_server="${prefix}-password-file"
 arbitrary_uid="${prefix}-arbitrary-uid"
+tls_server="${prefix}-tls"
 
 cleanup() {
     "${runtime}" rm -f \
         "${primary}" "${restart}" "${passwordless}" \
-        "${password_file_server}" "${arbitrary_uid}" >/dev/null 2>&1 || true
+        "${password_file_server}" "${arbitrary_uid}" \
+        "${tls_server}" >/dev/null 2>&1 || true
     "${runtime}" network rm "${network}" >/dev/null 2>&1 || true
-    "${runtime}" volume rm "${data_volume}" "${arbitrary_volume}" >/dev/null 2>&1 || true
+    "${runtime}" volume rm \
+        "${data_volume}" "${arbitrary_volume}" "${tls_volume}" >/dev/null 2>&1 || true
     rm -rf "${secret_dir}"
 }
 trap cleanup EXIT
@@ -89,6 +93,7 @@ query_remote() {
 "${runtime}" network create "${network}" >/dev/null
 "${runtime}" volume create "${data_volume}" >/dev/null
 "${runtime}" volume create "${arbitrary_volume}" >/dev/null
+"${runtime}" volume create "${tls_volume}" >/dev/null
 
 run_server "${primary}" \
     --network-alias primary \
@@ -154,5 +159,25 @@ run_server "${arbitrary_uid}" \
 wait_healthy "${arbitrary_uid}"
 test "$("${runtime}" exec "${arbitrary_uid}" id -u)" = 100123
 query_server "${arbitrary_uid}" "${password}" 'SELECT 1' | grep -qx 1
+
+# A TLS-only native listener must support initialization and the image health
+# check without retaining the clear-text native port.
+env -u MSYS_NO_PATHCONV MSYS2_ARG_CONV_EXCL='/CN=' \
+    openssl req -x509 -newkey rsa:2048 -sha256 -nodes -days 1 \
+    -keyout "${secret_dir}/tls.key" \
+    -out "${secret_dir}/tls.crt" \
+    -subj '/CN=localhost' \
+    -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1' >/dev/null 2>&1
+chmod 0444 "${secret_dir}/tls.key" "${secret_dir}/tls.crt"
+run_server "${tls_server}" \
+    --env CLICKHOUSE_PASSWORD="${password}" \
+    --volume "${tls_volume}:/var/lib/clickhouse" \
+    --volume "${repo_root}/container/config.d/tls.example.xml:/etc/clickhouse-server/config.d/tls.xml:ro" \
+    --volume "${secret_dir}/tls.crt:/etc/clickhouse-server/certs/tls.crt:ro" \
+    --volume "${secret_dir}/tls.key:/etc/clickhouse-server/certs/tls.key:ro"
+wait_healthy "${tls_server}"
+"${runtime}" exec "${tls_server}" clickhouse-client \
+    --secure --accept-invalid-certificate --host 127.0.0.1 --port 9440 \
+    --user default --password "${password}" --query 'SELECT 1' | grep -qx 1
 
 echo "Smoke tests passed for ClickHouse ${actual_version}"

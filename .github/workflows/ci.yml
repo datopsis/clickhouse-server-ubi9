@@ -43,6 +43,9 @@ jobs:
       - name: Test release tag validation
         run: bash tests/release-tag.sh
 
+      - name: Test SPDX augmentation
+        run: python -m unittest discover --start-directory tests --pattern "test_*.py"
+
       - name: Audit GitHub Actions security
         uses: zizmorcore/zizmor-action@70fb788f84895a7701f5643d103d587e460b5c99 # v0.6.3
         with:
@@ -109,6 +112,12 @@ jobs:
           upload-artifact: false
           upload-release-assets: false
 
+      - name: Add declared ClickHouse TGZ components to SPDX SBOM
+        run: >-
+          python scripts/augment-spdx.py
+          --input clickhouse-server-ubi9.spdx.json
+          --output clickhouse-server-ubi9.spdx.json
+
       - name: Scan Syft SBOM with Grype
         id: grype
         uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
@@ -119,6 +128,20 @@ jobs:
           severity-cutoff: high
           only-fixed: true
           fail-build: true
+          cache-db: true
+          grype-version: v0.118.0
+
+      - name: Record all Grype findings
+        if: ${{ always() && hashFiles('clickhouse-server-ubi9.spdx.json') != '' }}
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
+        with:
+          sbom: clickhouse-server-ubi9.spdx.json
+          output-format: json
+          output-file: grype-all.json
+          severity-cutoff: negligible
+          only-fixed: false
+          fail-build: false
+          cache-db: true
           grype-version: v0.118.0
 
       - name: Retain security artifacts
@@ -129,6 +152,7 @@ jobs:
           path: |
             clickhouse-server-ubi9.spdx.json
             grype.sarif
+            grype-all.json
           if-no-files-found: warn
           retention-days: 14
 

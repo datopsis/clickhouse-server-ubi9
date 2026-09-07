@@ -64,10 +64,30 @@ EOF
 
 client_command() {
     local -n command_ref=$1
+    local port
+
     command_ref=(clickhouse-client --host 127.0.0.1 --user default)
     if [[ -n "${CLICKHOUSE_PASSWORD}" ]]; then
         command_ref+=(--password "${CLICKHOUSE_PASSWORD}")
     fi
+
+    port="$(clickhouse extract-from-config \
+        --config-file "${CONFIG_FILE}" --key tcp_port --try 2>/dev/null || true)"
+    if [[ -n "${port}" ]]; then
+        command_ref+=(--port "${port}")
+        return
+    fi
+
+    port="$(clickhouse extract-from-config \
+        --config-file "${CONFIG_FILE}" --key tcp_port_secure --try 2>/dev/null || true)"
+    if [[ -z "${port}" ]]; then
+        echo "Neither tcp_port nor tcp_port_secure is configured" >&2
+        exit 1
+    fi
+
+    # This client connects only over container loopback for initialization and
+    # health. External clients must validate the server certificate normally.
+    command_ref+=(--port "${port}" --secure --accept-invalid-certificate)
 }
 
 healthcheck() {
