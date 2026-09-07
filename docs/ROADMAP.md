@@ -102,22 +102,22 @@ This repository owns image-specific behavior, basic usage, and minimal platform 
 
 **Profile discovery and tailoring**
 
-- [ ] Pin a UBI 9 OpenSCAP scanner image by digest and pin the OpenSCAP and ComplianceAsCode content versions. Record the RHEL 9 data-stream SHA-256 and reject an unexpected stream.
-- [ ] Run the upstream RHEL 9 Standard profile in report-only discovery mode against the exported image filesystem. Inventory every pass, failure, error, not-applicable, and not-checked result without claiming host or deployment compliance.
+- [x] Build the scanner from the same digest-pinned UBI 9 base, pin OpenSCAP `1.3.14-1.el9_8` and ComplianceAsCode `0.1.82`, verify the release archive, and verify/record the RHEL 9 data-stream SHA-256. Retain the produced scanner image ID for every run; use a manifest digest if the tool image is later published for reuse.
+- [x] Add upstream RHEL 9 STIG-profile report-only discovery against an ownership-preserving exported image filesystem; ComplianceAsCode `0.1.82` does not contain a RHEL 9 Standard profile. Treat STIG as an analysis source rather than wholesale adoption, inventory every result, and keep evaluation errors blocking without claiming host or deployment compliance.
 - [ ] Create a reviewed XCCDF tailoring profile containing only rules that are applicable to and controlled by this image. Commit a rule-rationale matrix and document every host/platform exclusion.
 - [ ] Exclude kernel, boot-loader, partition, mount-layout, systemd, audit, host-networking, sysctl, SELinux-mode, and FIPS-mode controls unless the image later gains direct ownership of one. Do not use automatic remediation.
 
 **Safe CI integration**
 
-- [ ] Export the stopped, already-tested image's merged filesystem into an ephemeral directory and mount that directory read-only into the scanner. Never execute target-image content to prepare the scan.
-- [ ] Run `oscap-chroot` in a digest-pinned scanner with no Docker/Podman socket, no host namespace, no workflow secrets, and no evaluation-time network. Prove the minimum chroot-related capability; do not use `--privileged`, Podman-in-Podman, or broad host mounts.
-- [ ] Generate architecture-specific ARF XML, XCCDF XML, and HTML reports containing the image digest, architecture, scanner/content versions, data-stream hash, and tailoring hash. Retain them with the other image-security evidence.
+- [x] Export the stopped, already-tested image without executing it, mount the archive read-only, and extract as namespaced root into the scanner's disposable tmpfs so numeric ownership evidence is preserved.
+- [x] Configure OpenSCAP offline mode directly with `OSCAP_PROBE_ROOT` because UBI AppStream does not ship the `oscap-chroot` wrapper. Run with no Docker/Podman socket, host namespace, workflow secrets, or evaluation-time network; use a read-only scanner root, `no-new-privileges`, drop all capabilities, and add only `CHOWN`, `FOWNER`, `DAC_OVERRIDE`, and `SYS_CHROOT` for metadata preservation, restrictive-file inspection/results output, and offline probes.
+- [x] Generate and retain architecture-specific ARF XML, XCCDF XML, HTML, full JSON rule inventory, target/scanner image IDs, architecture, scanner/content versions, data-stream hash, and exit code with the other image-security evidence. Add the tailoring hash when the reviewed tailoring exists.
 - [ ] Run report-only on native AMD64 and ARM64 for at least three scheduled or `main` executions. Evaluation errors fail immediately; selected-rule findings become blocking only after the baseline is stable and reviewed.
 - [ ] Cross-check one exact image digest with `oscap-podman` on a disposable RHEL 9 host. Reconcile platform/applicability differences before enforcement; do not grant routine hosted CI root or engine access merely to match that command.
 
 **Exit evidence**
 
-- [ ] Retain the discovery report, final tailoring, rule-rationale/exclusion review, three stable two-architecture runs, capability inspection, and `oscap-chroot` versus `oscap-podman` comparison.
+- [ ] Retain the discovery report, final tailoring, rule-rationale/exclusion review, three stable two-architecture runs, capability inspection, and `OSCAP_PROBE_ROOT` versus `oscap-podman` comparison.
 - [ ] State precisely that the result covers selected image-filesystem controls and is not CIS/STIG certification of the host, OpenShift cluster, or production deployment.
 
 #### 6. Security-control provenance, STIG analysis, and SCTM export

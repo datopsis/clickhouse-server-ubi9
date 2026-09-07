@@ -7,13 +7,42 @@ audit daemon, host networking, or machine-wide security policy. Those controls
 belong to the container host or deployment platform and are outside this
 image's control.
 
-The project will therefore establish a measured baseline first, then maintain
-a tailored UBI 9 Micro container profile containing only applicable,
+The project is therefore establishing a measured baseline first, then will
+maintain a tailored UBI 9 Micro container profile containing only applicable,
 image-owned rules. Passing that profile means the inspected image filesystem
 meets the documented rules; it is not a claim that the image, host, OpenShift
 cluster, or complete ClickHouse deployment is CIS- or STIG-certified.
 
-## Recommended CI architecture
+## Implemented discovery baseline
+
+The discovery implementation pins these inputs. An update requires changing
+the values in `Containerfile.scap`, recalculating both hashes, reviewing the
+content changes, and rerunning both native architecture jobs.
+
+| Input | Pin | Verification |
+| --- | --- | --- |
+| Scanner base | UBI Minimal 9.8 manifest digest `sha256:7fbeae18dc9476399f565e68255f602a3374ea8614ba3d14843565131a13ff93` | BuildKit resolves the digest for the native runner architecture. |
+| OpenSCAP engine | UBI AppStream RPM `openscap-scanner-1.3.14-1.el9_8` | The build fails if that exact NEVRA cannot be installed; the complete resulting RPM inventory and `oscap --version` are retained so dependency drift is visible. |
+| ComplianceAsCode content | Release `0.1.82` ZIP | Archive SHA-256 `765e84bdce7f9055f9b9c2dd0ee2b713d4255f8eec94eac6d35ea4973c28919c` is checked before extraction. |
+| RHEL 9 data stream | `ssg-rhel9-ds.xml` from release `0.1.82` | Data-stream SHA-256 `92204daafbf4f38011671ef034fae4cffb48f708516186710346a9ec702a1f8f` is checked at build and recorded at evaluation. |
+| Discovery profile | `xccdf_org.ssgproject.content_profile_stig` | ComplianceAsCode 0.1.82 does not contain a RHEL 9 Standard profile. STIG is used as a broad discovery source because this project must review DISA-derived objectives; the inventory records every result without adopting the profile wholesale. |
+
+Red Hat's public UBI 9 AppStream repositories provide `openscap-scanner` for
+both x86_64 and aarch64, but do not provide `openscap-utils`. Consequently,
+the implementation invokes the documented `OSCAP_PROBE_ROOT` offline mode
+directly instead of relying on the `oscap-chroot` convenience wrapper from
+`openscap-utils`. The underlying OpenSCAP offline evaluation mechanism is the
+same. CI records the locally built scanner image ID; if the project later
+publishes the tool image for reuse, consumers must use its manifest digest,
+not its mutable tag.
+
+`Containerfile.scap` and the scanner scripts are CI tooling only. They do not
+add OpenSCAP, Python, `unzip`, a package manager, or any scanner content to the
+released ClickHouse image. The scanner image defaults to unprivileged UID/GID
+65534; only the reviewed wrapper overrides it to namespaced UID 0 while adding
+the explicitly bounded mounts, capabilities, network isolation, and limits.
+
+## CI security architecture
 
 Do not run Podman inside Podman and do not mount a Docker or Podman socket into
 the scanner. Nested container engines commonly require additional namespace,
@@ -25,35 +54,104 @@ Use this flow instead:
 
 1. Build and smoke-test the architecture-specific image in the existing native
    CI job.
-2. Create a stopped container and export its merged filesystem into an
-   ephemeral staging directory. Exporting does not execute image content.
-3. Run a digest-pinned UBI 9 OpenSCAP tool image with the exported filesystem
-   mounted read-only and a separate results directory mounted read-write.
-4. Run `oscap-chroot` against the read-only root and a pinned RHEL 9 data
-   stream. Give the scanner no engine socket, host namespaces, secrets, or
-   network access during evaluation. Grant only the minimum chroot-related
-   capability proven necessary by the qualification test.
+2. Create a stopped container and export its merged filesystem to an ephemeral
+   tar archive. `create` and `export` do not execute image content.
+3. Run the locally built, pinned-input UBI 9 OpenSCAP tool image with that tar
+   archive mounted read-only and a separate results directory mounted
+   read-write. Extract inside the scanner's disposable tmpfs as namespaced UID
+   0 so numeric owners and modes are preserved; unprivileged host extraction
+   would corrupt ownership evidence.
+4. Evaluate the extracted tree with `OSCAP_PROBE_ROOT` and the pinned RHEL 9
+   data stream. Give the scanner no engine socket, host namespace, workflow
+   secret, or evaluation-time network. Drop all capabilities, then add only
+   `CAP_CHOWN` and `CAP_FOWNER` to preserve exported metadata,
+   `CAP_DAC_OVERRIDE` to read restrictive target files and write the
+   host-owned results mount, and `CAP_SYS_CHROOT` for offline probes. Enable
+   `no-new-privileges`, make the scanner root filesystem read-only, and bound
+   memory and process count. Limit writable storage to the extracted-root and
+   OpenSCAP temporary tmpfs mounts plus the results directory.
 5. Upload the ARF XML, XCCDF results, HTML report, tool/content versions, data
    stream hash, image digest, architecture, and tailoring hash as CI evidence.
 6. Delete the exported root filesystem and stopped container after the job.
 
-The scanner process may run as UID 0 *inside its isolated scanner container* so
+The scanner process runs as UID 0 *inside its isolated scanner container* so
 it can inspect the mounted tree. That is different from granting the workflow a
 privileged container, host root, an engine socket, or broad host mounts. The
 target filesystem remains read-only and the ClickHouse image is never started
 as root.
 
-The implementation must first prove whether `CAP_SYS_CHROOT` alone is needed.
-If the selected runner cannot operate with that narrow allowance, stop and
-review the design rather than adding `--privileged` or broad capabilities.
+The native CI jobs prove that the scan operates with only those four named
+capabilities after `--cap-drop all`. If either runner cannot operate with that
+narrow allowance, the job fails; do not add `--privileged` or broader
+capabilities to make it pass.
+
+The scanner build and evaluation steps temporarily continue so later security
+checks and artifact upload still run. A final step requires both outcomes to
+be successful, so this sequencing preserves evidence without weakening the
+required `image` check.
+
+## Result semantics and evidence
+
+Discovery is non-blocking only for ordinary `fail`, `notapplicable`, and
+`notchecked` rule results. Failure to build or run the scanner, malformed or
+empty XCCDF, and any `error`, `unknown`, or missing result fail the architecture
+job. This distinction prevents "report-only" from hiding a broken scan.
+
+Each `image-security-<commit>-<architecture>` artifact includes:
+
+- `results.arf.xml`, the complete Asset Reporting Format evidence;
+- `results.xccdf.xml`, the machine-readable evaluation results;
+- `report.html`, the reviewer-oriented report;
+- `summary.json`, a deterministic count and complete rule/result inventory;
+- the OpenSCAP version, exact installed RPMs, data-stream hash, and OpenSCAP
+  exit code.
+
+`summary.json` also binds the evidence to the target image ID, scanner image
+ID, architecture, profile, and data-stream SHA-256. It deliberately does not
+label an upstream discovery-profile result as container, host, CIS, or STIG
+certification.
+
+## Initial native discovery result
+
+[GitHub Actions run 34151979084](https://github.com/datopsis/clickhouse-server-ubi9/actions/runs/34151979084)
+qualified commit `c099690` on both native architectures. The retained AMD64
+and ARM64 inventories contained the same 1,540 rule IDs and results:
+
+| Result | AMD64 | ARM64 |
+| --- | ---: | ---: |
+| `pass` | 59 | 59 |
+| `fail` | 7 | 7 |
+| `notapplicable` | 410 | 410 |
+| `notchecked` | 1 | 1 |
+| `notselected` | 1,063 | 1,063 |
+| `error`, `unknown`, or missing | 0 | 0 |
+
+OpenSCAP returned its documented noncompliance status 2 on both runners. The
+seven discovery failures were:
+
+- `accounts_umask_etc_bashrc`;
+- `accounts_umask_etc_profile`;
+- `configure_crypto_policy`;
+- `file_groupownership_system_commands_dirs`;
+- `file_ownership_binary_dirs`;
+- `network_configure_name_resolution`;
+- `package_crypto-policies_installed`.
+
+`security_patches_up_to_date` was `notchecked`. None of these results is an
+adopted container control yet. The next package must inspect the associated
+OVAL logic, distinguish image-owned behavior from absent host facilities,
+compare the result with the current Containerfile/SBOM, and document its
+applicability decision and rationale before selecting or excluding the rule.
+In particular, a profile `pass` is not sufficient evidence that a rule is
+applicable to a minimal container.
 
 ## Profile-development method
 
-The first implementation pull request should:
+The upstream RHEL 9 STIG profile is a discovery input, not a statement that
+every rule is applicable or inherited. The discovery implementation provides
+the pinned scan and inventory. The next
+profile-development pull request must:
 
-- pin the OpenSCAP engine, ComplianceAsCode content, and scanner-image digest;
-- verify the downloaded or packaged RHEL 9 data stream and record its SHA-256;
-- run the upstream RHEL 9 Standard profile in discovery/report-only mode;
 - classify every result as applicable, not applicable, inherited from the
   platform, pass, fail, error, or not checked;
 - commit an XCCDF tailoring file with a Datopsis-specific profile identifier;
@@ -87,27 +185,70 @@ SCAP integration should be incremental:
 4. **Drift review:** re-run discovery whenever the UBI major version, OpenSCAP
    engine, ComplianceAsCode data stream, or tailoring changes.
 
-Before enforcement, compare one image digest's `oscap-chroot` result with
+Before enforcement, compare one image digest's `OSCAP_PROBE_ROOT` result with
 `oscap-podman` on a disposable RHEL 9 host. Investigate differences in platform
 facts, applicability, and rule results. This is a qualification cross-check,
 not a reason to give routine GitHub-hosted CI root access.
 
-## Local Red Hat reproduction
+## Local discovery with Podman
 
-On a disposable RHEL 9 test host with the OpenSCAP container tooling installed,
-the reference scan remains:
+Run this only on a native Linux AMD64 or ARM64 host with Podman, Bash, and
+Python 3. Rootless Podman is sufficient if the host supports user namespaces
+and delegated cgroups. The scan wrapper grants the four documented
+filesystem/chroot capabilities only inside Podman's user namespace; it does
+not require host root or start the ClickHouse image as root.
 
 ```console
-sudo oscap-podman <image-id> xccdf eval \
+git clone https://github.com/datopsis/clickhouse-server-ubi9.git
+cd clickhouse-server-ubi9
+
+ARCHITECTURE=amd64  # use arm64 on an ARM64 host
+IMAGE="localhost/clickhouse-server-ubi9:test-${ARCHITECTURE}"
+SCANNER_IMAGE="localhost/datopsis-openscap:0.1.82-${ARCHITECTURE}"
+
+podman build --format docker --platform "linux/${ARCHITECTURE}" \
+  --file Containerfile --tag "${IMAGE}" .
+podman build --format docker --platform "linux/${ARCHITECTURE}" \
+  --file Containerfile.scap --tag "${SCANNER_IMAGE}" .
+
+CONTAINER_RUNTIME=podman \
+IMAGE="${IMAGE}" \
+SCAP_SCANNER_IMAGE="${SCANNER_IMAGE}" \
+ARCHITECTURE="${ARCHITECTURE}" \
+SCAP_RESULTS_DIR="scap-results-${ARCHITECTURE}" \
+  bash scripts/scap-scan.sh
+```
+
+Review `summary.json` first, then the HTML report and XML evidence. Confirm
+`rootfs.tar` was removed. Do not commit the generated results. If rootless
+Podman reports that memory limits are unsupported, qualify the host's cgroup
+configuration; do not remove the CI limit without a documented risk review.
+
+For a disconnected scan, build both images and run the wrapper while connected
+once, save them with `podman save`, transfer the repository plus image archive
+through the approved media process, load with `podman load`, and run the same
+wrapper. Evaluation already uses `--network none`; no content fetch occurs.
+Record and verify SHA-256 hashes for the repository commit/archive and saved
+images at both sides of the transfer.
+
+## RHEL `oscap-podman` qualification cross-check
+
+On a disposable RHEL 9 test host with `openscap-utils`, `openscap-scanner`, and
+`scap-security-guide` installed, use `oscap-podman` only for the planned
+one-digest comparison. First load the exact CI-qualified target digest and copy
+the reviewed tailoring file to the host. Then run:
+
+```console
+sudo oscap-podman <image-id-or-digest> xccdf eval \
   --profile <datopsis-profile-id> \
-  --tailoring-file datopsis-ubi9-micro-tailoring.xml \
+  --tailoring-file security/scap/datopsis-ubi9-micro-tailoring.xml \
   --results-arf results.arf.xml \
   --report report.html \
   /usr/share/xml/scap/ssg/content/ssg-rhel9-ds.xml
 ```
 
-`oscap-podman` requires root because it integrates with local container storage.
-Use only a dedicated test host containing no unrelated workloads or secrets.
+`oscap-podman` requires host root because it integrates with local container
+storage. Use only a dedicated test host containing no unrelated workloads or secrets.
 Record the exact image digest, host version, Podman/OpenSCAP versions, content
 package version, tailoring hash, command, and sanitized results.
 

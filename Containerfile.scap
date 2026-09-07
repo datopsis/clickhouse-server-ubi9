@@ -1,0 +1,45 @@
+# syntax=docker/dockerfile:1.7
+
+ARG UBI_MINIMAL_IMAGE="registry.access.redhat.com/ubi9/ubi-minimal:9.8@sha256:7fbeae18dc9476399f565e68255f602a3374ea8614ba3d14843565131a13ff93"
+
+FROM ${UBI_MINIMAL_IMAGE}
+
+ARG OPENSCAP_NEVRA="1.3.14-1.el9_8"
+ARG SSG_VERSION="0.1.82"
+ARG SSG_ARCHIVE_SHA256="765e84bdce7f9055f9b9c2dd0ee2b713d4255f8eec94eac6d35ea4973c28919c"
+ARG SSG_RHEL9_DATASTREAM_SHA256="92204daafbf4f38011671ef034fae4cffb48f708516186710346a9ec702a1f8f"
+
+# This image is a CI tool, not a runtime layer of the ClickHouse image. The
+# OpenSCAP RPM version and upstream content are deliberately pinned so a
+# repository or content update cannot silently change compliance evidence.
+# hadolint ignore=DL3041
+RUN microdnf install -y \
+        "openscap-scanner-${OPENSCAP_NEVRA}" \
+        tar \
+        unzip \
+    && mkdir -p /opt/scap \
+    && archive="/tmp/scap-security-guide-${SSG_VERSION}.zip" \
+    && curl --fail --location --proto '=https' --tlsv1.2 \
+         --retry 5 --retry-delay 2 --retry-all-errors \
+         --output "${archive}" \
+         "https://github.com/ComplianceAsCode/content/releases/download/v${SSG_VERSION}/scap-security-guide-${SSG_VERSION}.zip" \
+    && printf '%s  %s\n' "${SSG_ARCHIVE_SHA256}" "${archive}" | sha256sum --check --strict \
+    && unzip -j "${archive}" \
+         "scap-security-guide-${SSG_VERSION}/ssg-rhel9-ds.xml" \
+         -d /opt/scap \
+    && printf '%s  %s\n' \
+         "${SSG_RHEL9_DATASTREAM_SHA256}" \
+         /opt/scap/ssg-rhel9-ds.xml | sha256sum --check --strict \
+    && rm -f "${archive}" \
+    && microdnf clean all \
+    && rm -rf /var/cache/yum /var/log/dnf* /var/log/yum.*
+
+COPY --chmod=0755 scripts/scap-container.sh /usr/local/bin/scap-container
+
+LABEL org.opencontainers.image.title="Datopsis OpenSCAP offline scanner" \
+      org.opencontainers.image.description="Pinned, isolated CI scanner for clickhouse-server-ubi9 exported filesystems" \
+      org.opencontainers.image.source="https://github.com/datopsis/clickhouse-server-ubi9"
+
+USER 65534:65534
+
+ENTRYPOINT ["/usr/local/bin/scap-container"]

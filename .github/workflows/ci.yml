@@ -80,6 +80,8 @@ jobs:
       SBOM_FILE: clickhouse-server-ubi9-${{ matrix.architecture }}.spdx.json
       GRYPE_SARIF: grype-${{ matrix.architecture }}.sarif
       GRYPE_ALL: grype-all-${{ matrix.architecture }}.json
+      SCAP_SCANNER_IMAGE: localhost/datopsis-openscap:0.1.82-${{ matrix.architecture }}
+      SCAP_RESULTS_DIR: scap-results-${{ matrix.architecture }}
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -133,6 +135,30 @@ jobs:
           CONTAINER_RUNTIME: docker
           IMAGE: ${{ env.TEST_IMAGE }}
         run: bash tests/tls-rehearsal.sh
+
+      - name: Build pinned OpenSCAP tool image
+        id: build-scap
+        continue-on-error: true
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: Containerfile.scap
+          platforms: ${{ matrix.platform }}
+          load: true
+          push: false
+          tags: ${{ env.SCAP_SCANNER_IMAGE }}
+          cache-from: type=gha,scope=scap-${{ matrix.architecture }}
+          cache-to: type=gha,mode=max,scope=scap-${{ matrix.architecture }}
+
+      - name: Run SCAP discovery scan
+        id: scan-scap
+        if: ${{ steps.build-scap.outcome == 'success' }}
+        continue-on-error: true
+        env:
+          ARCHITECTURE: ${{ matrix.architecture }}
+          CONTAINER_RUNTIME: docker
+          IMAGE: ${{ env.TEST_IMAGE }}
+        run: bash scripts/scap-scan.sh
 
       - name: Scan image
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
@@ -194,6 +220,7 @@ jobs:
             ${{ env.SBOM_FILE }}
             ${{ env.GRYPE_SARIF }}
             ${{ env.GRYPE_ALL }}
+            ${{ env.SCAP_RESULTS_DIR }}/
           if-no-files-found: warn
           retention-days: 14
 
@@ -203,6 +230,15 @@ jobs:
         with:
           sarif_file: ${{ env.GRYPE_SARIF }}
           category: grype-image-${{ matrix.architecture }}
+
+      - name: Require successful SCAP evaluation
+        if: ${{ always() }}
+        env:
+          SCAP_BUILD_OUTCOME: ${{ steps.build-scap.outcome }}
+          SCAP_SCAN_OUTCOME: ${{ steps.scan-scap.outcome }}
+        run: |
+          test "${SCAP_BUILD_OUTCOME}" = success
+          test "${SCAP_SCAN_OUTCOME}" = success
 
   image-result:
     name: image
