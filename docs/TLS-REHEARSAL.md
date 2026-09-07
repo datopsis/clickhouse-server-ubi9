@@ -17,7 +17,7 @@ CONTAINER_RUNTIME=podman \
 The automated test proves:
 
 - the server receives only its leaf key and leaf-plus-intermediate chain;
-- HTTPS and native TLS accept the issuing CA and exact DNS name;
+- HTTPS accepts the issuing CA and exact DNS name; native TLS accepts the CA and protocol query, while OpenSSL independently verifies the listener certificate's DNS name;
 - unrelated CAs, wrong hostnames, clear-text clients, an incomplete chain, and an unreadable leaf key fail;
 - a connected CA bundle supports both public PKI and a controlled private-CA ClickHouse endpoint;
 - an internal Podman/Docker network is marked `internal`, can reach its controlled private-CA endpoint through ClickHouse, and cannot open a public-IP TCP connection;

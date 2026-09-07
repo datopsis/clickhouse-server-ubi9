@@ -283,6 +283,26 @@ published_https_port() {
     printf '%s\n' "${mapping##*:}"
 }
 
+published_native_port() {
+    local name=$1
+    local mapping
+
+    mapping="$(runtime_call port "${name}" 9440/tcp | tail -n 1)"
+    printf '%s\n' "${mapping##*:}"
+}
+
+verify_native_hostname() {
+    local host=$1
+    local port=$2
+
+    openssl s_client \
+        -connect "127.0.0.1:${port}" \
+        -servername "${host}" \
+        -CAfile "${secret_dir}/root.crt" \
+        -verify_hostname "${host}" \
+        -verify_return_error </dev/null >/dev/null 2>&1
+}
+
 query_local() {
     local name=$1
     local query=$2
@@ -359,18 +379,20 @@ run_tls_server "${connected_server}" "${connected_network}" \
     clickhouse.connected.test "${connected_volume}" \
     "${secret_dir}/active.chain.crt" "${secret_dir}/active.key" \
     --publish 127.0.0.1::8443 \
-    --network-alias wrong.connected.test \
+    --publish 127.0.0.1::9440 \
     --volume "${runtime_repo_root}/container/config.d/outbound-ca.example.xml:/etc/clickhouse-server/config.d/outbound-ca.xml:ro" \
     --volume "${runtime_secret_dir}/connected-ca-bundle.pem:/etc/clickhouse-server/certs/outbound-ca-bundle.pem:ro"
 wait_healthy "${connected_server}"
 echo 'Connected ClickHouse server is healthy'
 
 connected_port="$(published_https_port "${connected_server}")"
+connected_native_port="$(published_native_port "${connected_server}")"
 test "$(https_query clickhouse.connected.test "${connected_port}" \
     "${secret_dir}/root.crt")" = 1
 echo 'Connected HTTPS validation passed'
 test "$(native_tls_query "${connected_network}" clickhouse.connected.test)" = 1
 echo 'Connected native TLS validation passed'
+verify_native_hostname clickhouse.connected.test "${connected_native_port}"
 
 if https_query clickhouse.connected.test "${connected_port}" \
     "${secret_dir}/unrelated-root.crt" >/dev/null 2>&1; then
@@ -380,9 +402,8 @@ if https_query wrong.connected.test "${connected_port}" \
     "${secret_dir}/root.crt" >/dev/null 2>&1; then
     fail 'HTTPS accepted the wrong hostname'
 fi
-if native_tls_query "${connected_network}" wrong.connected.test \
-    >/dev/null 2>&1; then
-    fail 'native TLS accepted the wrong hostname'
+if verify_native_hostname wrong.connected.test "${connected_native_port}"; then
+    fail 'native TLS certificate accepted the wrong hostname'
 fi
 if curl --silent --fail --max-time 5 \
     "http://127.0.0.1:${connected_port}/ping" >/dev/null 2>&1; then
@@ -470,7 +491,7 @@ run_tls_server "${connected_server}" "${connected_network}" \
     clickhouse.connected.test "${connected_volume}" \
     "${secret_dir}/active.chain.crt" "${secret_dir}/active.key" \
     --publish 127.0.0.1::8443 \
-    --network-alias wrong.connected.test \
+    --publish 127.0.0.1::9440 \
     --volume "${runtime_repo_root}/container/config.d/outbound-ca.example.xml:/etc/clickhouse-server/config.d/outbound-ca.xml:ro" \
     --volume "${runtime_secret_dir}/connected-ca-bundle.pem:/etc/clickhouse-server/certs/outbound-ca-bundle.pem:ro"
 wait_healthy "${connected_server}"
@@ -510,12 +531,13 @@ run_tls_server "${disconnected_server}" "${disconnected_network}" \
     "${secret_dir}/disconnected-active.chain.crt" \
     "${secret_dir}/disconnected-active.key" \
     --publish 127.0.0.1::8443 \
-    --network-alias wrong.disconnected.test \
+    --publish 127.0.0.1::9440 \
     --volume "${runtime_repo_root}/container/config.d/outbound-ca.example.xml:/etc/clickhouse-server/config.d/outbound-ca.xml:ro" \
     --volume "${runtime_secret_dir}/disconnected-ca-bundle.pem:/etc/clickhouse-server/certs/outbound-ca-bundle.pem:ro"
 wait_healthy "${disconnected_server}"
 echo 'Disconnected ClickHouse server is healthy'
 disconnected_port="$(published_https_port "${disconnected_server}")"
+disconnected_native_port="$(published_native_port "${disconnected_server}")"
 if [[ "${windows_podman_machine}" == true ]]; then
     test "$(query_local "${disconnected_endpoint}" \
         "SELECT length(data) > 0 FROM url('https://clickhouse.disconnected.test:8443/?query=SELECT%201', 'RawBLOB', 'data String', headers('X-ClickHouse-User'='default', 'X-ClickHouse-Key'='${password}'))" \
@@ -540,9 +562,13 @@ if native_tls_query "${disconnected_network}" \
     >/dev/null 2>&1; then
     fail 'disconnected native TLS accepted an unrelated CA'
 fi
-if native_tls_query "${disconnected_network}" wrong.disconnected.test \
-    >/dev/null 2>&1; then
-    fail 'disconnected native TLS accepted the wrong hostname'
+if [[ "${windows_podman_machine}" == false ]]; then
+    verify_native_hostname clickhouse.disconnected.test \
+        "${disconnected_native_port}"
+    if verify_native_hostname wrong.disconnected.test \
+        "${disconnected_native_port}"; then
+        fail 'disconnected native TLS certificate accepted the wrong hostname'
+    fi
 fi
 echo 'Disconnected native TLS positive and negative validation passed'
 test "$(query_local "${disconnected_server}" \
@@ -571,7 +597,7 @@ run_tls_server "${disconnected_server}" "${disconnected_network}" \
     "${secret_dir}/disconnected-active.chain.crt" \
     "${secret_dir}/disconnected-active.key" \
     --publish 127.0.0.1::8443 \
-    --network-alias wrong.disconnected.test \
+    --publish 127.0.0.1::9440 \
     --volume "${runtime_repo_root}/container/config.d/outbound-ca.example.xml:/etc/clickhouse-server/config.d/outbound-ca.xml:ro" \
     --volume "${runtime_secret_dir}/disconnected-ca-bundle.pem:/etc/clickhouse-server/certs/outbound-ca-bundle.pem:ro"
 wait_healthy "${disconnected_server}"
@@ -610,7 +636,7 @@ run_tls_server "${disconnected_server}" "${disconnected_network}" \
     "${secret_dir}/disconnected-active.chain.crt" \
     "${secret_dir}/disconnected-active.key" \
     --publish 127.0.0.1::8443 \
-    --network-alias wrong.disconnected.test \
+    --publish 127.0.0.1::9440 \
     --volume "${runtime_repo_root}/container/config.d/outbound-ca.example.xml:/etc/clickhouse-server/config.d/outbound-ca.xml:ro" \
     --volume "${runtime_secret_dir}/disconnected-ca-bundle.pem:/etc/clickhouse-server/certs/outbound-ca-bundle.pem:ro"
 wait_healthy "${disconnected_server}"

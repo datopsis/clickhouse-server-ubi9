@@ -123,6 +123,17 @@ clickhouse-client --secure --host clickhouse.example.internal --port 19440 \
 
 Configure the client's CA according to that client or driver; never use an `insecure` or `skip verification` option as the production solution.
 
+Client behavior must be qualified, not inferred from `verificationMode` alone.
+In native-protocol testing with ClickHouse 26.8.2.7, `clickhouse-client` strict
+mode rejected an unrelated CA but did not reject the same trusted certificate
+when the connection used a different DNS alias. The CI rehearsal therefore
+uses `clickhouse-client` to prove native protocol and CA validation, and
+OpenSSL's `-verify_hostname` to prove the certificate presented by the native
+listener has the expected identity. Confirm that each production driver
+performs hostname verification. If a required client does not, tightly scope
+CA issuance and network access and treat the limitation as accepted risk, or
+terminate native TLS at a proxy that enforces the expected identity.
+
 ## Kubernetes and OpenShift secret mount
 
 Create the Secret locally without putting key material in YAML or shell history, then apply it through the approved cluster-management channel:
