@@ -1,0 +1,16 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: clickhouse-https
+  labels:
+    app.kubernetes.io/name: clickhouse-qualification
+spec:
+  port:
+    targetPort: https
+  tls:
+    termination: passthrough
+    insecureEdgeTerminationPolicy: None
+  to:
+    kind: Service
+    name: clickhouse
+    weight: 100
