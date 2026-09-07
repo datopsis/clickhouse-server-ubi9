@@ -137,7 +137,7 @@ fi
 # A mounted secret must work without putting the password directly in the
 # server container's environment.
 printf '%s\n' "${password}" > "${secret_dir}/password"
-chmod 0600 "${secret_dir}/password"
+chmod 0444 "${secret_dir}/password"
 run_server "${password_file_server}" \
     --network-alias password-file \
     --env CLICKHOUSE_PASSWORD_FILE=/run/secrets/clickhouse-password \
