@@ -124,6 +124,7 @@ jobs:
 
       - name: Run smoke tests
         env:
+          CONTAINER_RUNTIME: docker
           IMAGE: ${{ env.TEST_IMAGE }}
         run: bash tests/smoke.sh
 

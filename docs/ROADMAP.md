@@ -53,7 +53,7 @@ This repository owns image-specific behavior, basic usage, and minimal platform 
 **User documentation and exit evidence**
 
 - [x] Update `docs/CI.md` with runner labels, native-versus-emulated boundaries, artifact names, expected architecture checks, and local reproduction commands.
-- [ ] Retain successful workflow URLs and per-architecture image version, package count, SBOM, vulnerability results, and smoke logs. Record runner architecture from `uname -m` rather than inferring it only from a workflow label.
+- [x] Retain successful workflow URLs and per-architecture image version, package count, SBOM, vulnerability results, and smoke logs. Record runner architecture from `uname -m` rather than inferring it only from a workflow label. See [qualification evidence](QUALIFICATION.md#native-amd64-and-arm64-ci--2026-09-07).
 
 #### 3. CA-issued connected and disconnected TLS rehearsal
 
@@ -107,6 +107,7 @@ This repository owns image-specific behavior, basic usage, and minimal platform 
 ### Image behavior and compatibility
 
 - [ ] Run the complete smoke suite on the final ClickHouse and UBI digests.
+- [ ] Run the complete smoke suite with the supported Podman baseline and record both client and server versions; retain the native Docker-based GitHub Actions results as separate runtime evidence.
 - [ ] Validate native `linux/amd64` and `linux/arm64` images, not only an emulated multi-platform build.
 - [ ] Exercise the image on an OpenShift 4 cluster with an arbitrary UID, restricted security context constraints, a read-only root filesystem, and a persistent volume.
 - [ ] Verify first-start initialization, password files, mounted configuration, restart persistence, graceful shutdown, and backup/restore instructions against the release candidate.

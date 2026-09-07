@@ -43,7 +43,7 @@ openssl req -x509 -newkey rsa:3072 -sha256 -nodes -days 30 \
   -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1'
 ```
 
-## Enable direct TLS with Docker or Podman
+## Enable direct TLS with Podman
 
 Copy [`container/config.d/tls.example.xml`](../container/config.d/tls.example.xml) to `tls.xml` beside the certificate and key. It contains:
 
@@ -75,13 +75,15 @@ Copy [`container/config.d/tls.example.xml`](../container/config.d/tls.example.xm
 
 The entrypoint detects that the clear-text native port was removed and uses `tcp_port_secure` for initialization and its local health check. Certificate validation is skipped only for that loopback-only internal client, where the server certificate commonly does not identify `127.0.0.1`; external clients must validate the certificate and hostname normally.
 
-On Linux, make the files readable by the image's runtime group (`0`) but not world-readable:
+For rootless Podman on Linux, map the files to the image identity inside Podman's user namespace and keep the private key unreadable to other container users:
 
 ```console
-sudo chown root:root tls.crt tls.key tls.xml
-sudo chmod 0444 tls.crt tls.xml
-sudo chmod 0440 tls.key
+chmod 0444 tls.crt tls.xml
+chmod 0400 tls.key
+podman unshare chown 101:0 tls.key
 ```
+
+The key may display subordinate host IDs afterward; `podman unshare ls -l tls.key` shows its container-visible ownership. For rootful Podman, use `sudo chown 101:0 tls.key` instead. Do not make the private key world-readable to bypass a mapping problem.
 
 Run the image with separate read-only mounts. Add `:Z` to bind mounts on SELinux hosts:
 

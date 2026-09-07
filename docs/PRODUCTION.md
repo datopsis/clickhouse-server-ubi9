@@ -12,7 +12,7 @@ Production readiness is a property of a tested deployment, not an image label. C
 ## 2. Prepare identity and secrets
 
 - Run non-root with `runAsUser: 101`, `runAsGroup: 0`, or a platform-assigned OpenShift UID with group `0`. Set `runAsNonRoot`, drop all capabilities, enable `no-new-privileges`, and use the runtime default seccomp profile.
-- Store the password in a Docker/Kubernetes secret and set `CLICKHOUSE_PASSWORD_FILE`; do not put it in a manifest, command history, or image layer.
+- Store the password in a Podman/Kubernetes secret and set `CLICKHOUSE_PASSWORD_FILE`; do not put it in a manifest, command history, or image layer.
 - Create named users and roles with SQL or mounted `users.d` fragments. The environment-variable interface intentionally manages only `default`.
 - Rotate credentials and certificates through a rehearsed rolling procedure. See [TLS certificates and trust](TLS.md).
 

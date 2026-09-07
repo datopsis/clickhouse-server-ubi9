@@ -10,7 +10,7 @@ This model prevents startup scripts from recursively changing production data ow
 
 The important difference is directory ownership. The official image normally starts its entrypoint as root, discovers configured paths, creates or changes their ownership, and then launches ClickHouse as its runtime user. This image starts non-root, discovers the same classes of local path, creates permitted subdirectories, and fails with preparation instructions when the mount itself is not writable. It never repairs ownership.
 
-The equivalent of choosing a data location for a particular `docker run` is to mount a ClickHouse configuration fragment and the corresponding volume in that command. Create `storage.xml` in the current directory:
+The equivalent of choosing a data location for a particular `podman run` is to mount a ClickHouse configuration fragment and the corresponding volume in that command. Create `storage.xml` in the current directory:
 
 ```xml
 <?xml version="1.0"?>
@@ -19,16 +19,18 @@ The equivalent of choosing a data location for a particular `docker run` is to m
 </clickhouse>
 ```
 
-Prepare the host directory for the image's UID and group, then start the container:
+For rootless Podman on Linux, prepare the host directory within Podman's user namespace, then start the container:
 
 ```console
-sudo install -d -m 0770 -o 101 -g 0 /srv/clickhouse/data
-docker run --detach --name clickhouse \
+mkdir -p ./clickhouse-storage/data
+podman unshare chown 101:0 ./clickhouse-storage/data
+podman unshare chmod 0770 ./clickhouse-storage/data
+podman run --detach --name clickhouse \
   --env CLICKHOUSE_PASSWORD='replace-me' \
   --read-only --tmpfs /tmp:size=256m,mode=1777 \
   --cap-drop ALL --security-opt no-new-privileges \
-  --volume ./storage.xml:/etc/clickhouse-server/config.d/storage.xml:ro \
-  --volume /srv/clickhouse/data:/data/clickhouse \
+  --volume ./storage.xml:/etc/clickhouse-server/config.d/storage.xml:ro,Z \
+  --volume ./clickhouse-storage/data:/data/clickhouse:Z \
   ghcr.io/datopsis/clickhouse-server-ubi9@sha256:<digest>
 ```
 
@@ -47,11 +49,11 @@ This short example moves only the primary data path. The [complete custom-path p
 
 ## Default named volume
 
-The image declares `/var/lib/clickhouse` and creates it as `101:0` with group permissions matching the owner. A new Docker or Podman named volume therefore works without an ownership-changing startup step:
+The image declares `/var/lib/clickhouse` and creates it as `101:0` with group permissions matching the owner. A new Podman named volume therefore works without a manual ownership-changing startup step:
 
 ```console
-docker volume create clickhouse-data
-docker run --detach --name clickhouse \
+podman volume create clickhouse-data
+podman run --detach --name clickhouse \
   --env CLICKHOUSE_PASSWORD='replace-me' \
   --read-only --tmpfs /tmp:size=256m,mode=1777 \
   --cap-drop ALL --security-opt no-new-privileges \
@@ -63,19 +65,23 @@ The `/tmp` mount is required with a read-only root filesystem. The entrypoint wr
 
 ## Linux bind mount
 
-Prepare a host directory for the fixed image identity before starting the container:
+Rootless Podman maps container IDs through the invoking user's subordinate UID/GID ranges. Prepare a directory through `podman unshare`; do not use a literal host owner of `101:0`, which is correct only for rootful Podman without user-namespace remapping:
 
 ```console
-sudo install -d -m 0770 -o 101 -g 0 /srv/clickhouse/data
-docker run --detach --name clickhouse \
+mkdir -p ./clickhouse-data
+podman unshare chown 101:0 ./clickhouse-data
+podman unshare chmod 0770 ./clickhouse-data
+podman run --detach --name clickhouse \
   --env CLICKHOUSE_PASSWORD='replace-me' \
   --read-only --tmpfs /tmp:size=256m,mode=1777 \
   --cap-drop ALL --security-opt no-new-privileges \
-  --volume /srv/clickhouse/data:/var/lib/clickhouse \
+  --volume ./clickhouse-data:/var/lib/clickhouse:Z \
   ghcr.io/datopsis/clickhouse-server-ubi9@sha256:<digest>
 ```
 
-On an SELinux-enforcing Podman or Docker host, add `:Z` for a private relabel, for example `/srv/clickhouse/data:/var/lib/clickhouse:Z`. Coordinate labeling with the host administrator when the same content must be shared; do not disable SELinux to work around a denial.
+The `:Z` option gives a private SELinux label. Coordinate labeling with the host administrator when the same content must be shared; do not disable SELinux to work around a denial. Podman's `:U` option can perform the mapped recursive ownership change automatically, but it modifies the host tree and can delay startup, so this guide uses the explicit `podman unshare` preparation instead.
+
+For rootful Podman without user-namespace remapping, prepare a system path with `sudo install -d -m 0770 -o 101 -g 0 /srv/clickhouse/data` and mount that path. Do not mix the rootless and rootful ownership procedures.
 
 If organizational policy assigns a different UID while retaining writable group `0`, prepare shared content according to the OpenShift-compatible image convention:
 
@@ -121,22 +127,23 @@ Create a configuration fragment such as `storage.xml`:
 </clickhouse>
 ```
 
-Provision every top-level mount and mount the fragment read-only:
+For rootless Podman, provision every top-level mount inside its user namespace and mount the fragment read-only:
 
 ```console
-sudo install -d -m 0770 -o 101 -g 0 \
-  /srv/clickhouse/data /srv/clickhouse/tmp \
-  /srv/clickhouse/user-files /srv/clickhouse/format-schemas
+mkdir -p ./clickhouse-storage/data ./clickhouse-storage/tmp \
+  ./clickhouse-storage/user-files ./clickhouse-storage/format-schemas
+podman unshare chown -R 101:0 ./clickhouse-storage
+podman unshare chmod -R 0770 ./clickhouse-storage
 
-docker run --detach --name clickhouse \
+podman run --detach --name clickhouse \
   --env CLICKHOUSE_PASSWORD='replace-me' \
   --read-only --tmpfs /tmp:size=256m,mode=1777 \
   --cap-drop ALL --security-opt no-new-privileges \
-  --volume ./storage.xml:/etc/clickhouse-server/config.d/storage.xml:ro \
-  --volume /srv/clickhouse/data:/data/clickhouse \
-  --volume /srv/clickhouse/tmp:/data/clickhouse-tmp \
-  --volume /srv/clickhouse/user-files:/data/user-files \
-  --volume /srv/clickhouse/format-schemas:/data/format-schemas \
+  --volume ./storage.xml:/etc/clickhouse-server/config.d/storage.xml:ro,Z \
+  --volume ./clickhouse-storage/data:/data/clickhouse:Z \
+  --volume ./clickhouse-storage/tmp:/data/clickhouse-tmp:Z \
+  --volume ./clickhouse-storage/user-files:/data/user-files:Z \
+  --volume ./clickhouse-storage/format-schemas:/data/format-schemas:Z \
   ghcr.io/datopsis/clickhouse-server-ubi9@sha256:<digest>
 ```
 
@@ -159,7 +166,7 @@ An additional local disk needs both a ClickHouse configuration entry and a writa
 </clickhouse>
 ```
 
-Prepare `/srv/clickhouse/archive` using the same UID/GID or group-based procedure, then mount it at `/data/archive`. The entrypoint discovers every configured disk `path` and `metadata_path`, creates missing subdirectories where permitted, and fails before launching the server when a required local location is not writable. Object-storage credentials and remote endpoints have their own configuration and are not made valid by local directory preparation.
+Prepare the archive directory using the same rootless `podman unshare` or rootful UID/GID procedure, then mount it at `/data/archive`. The entrypoint discovers every configured disk `path` and `metadata_path`, creates missing subdirectories where permitted, and fails before launching the server when a required local location is not writable. Object-storage credentials and remote endpoints have their own configuration and are not made valid by local directory preparation.
 
 ## Troubleshooting
 
@@ -173,12 +180,12 @@ Container identity: uid=100123 gid=0
 check the container identity, mount flags, ownership, mode, ACL, SELinux label, and storage backend:
 
 ```console
-docker inspect clickhouse --format '{{.Config.User}} {{json .Mounts}}'
-docker run --rm --entrypoint id \
+podman inspect clickhouse --format '{{.Config.User}} {{json .Mounts}}'
+podman run --rm --entrypoint id \
   ghcr.io/datopsis/clickhouse-server-ubi9@sha256:<digest>
-namei -l /srv/clickhouse/archive
-getfacl /srv/clickhouse/archive
-ls -ldZ /srv/clickhouse/archive
+namei -l ./clickhouse-data
+getfacl ./clickhouse-data
+ls -ldZ ./clickhouse-data
 ```
 
 For Kubernetes or OpenShift, also inspect `id`, the pod security context, PVC events, and the mounted directory from a diagnostic pod using the same security context. Correct the storage provisioning or workload identity outside the running ClickHouse container. Do not solve the problem by starting the database as root, adding broad capabilities, disabling SELinux, or making the volume world-writable.

@@ -30,14 +30,14 @@ The builder uses UBI Minimal and is discarded. Only UBI Micro, a small set of UB
 
 ## Project scope
 
-This repository owns the container artifact and its contract: build inputs, entrypoint behavior, ports, environment variables, configuration/mount conventions, rootless operation, basic Docker/Podman examples, image security evidence, and minimal platform-qualification fixtures.
+This repository owns the container artifact and its contract: build inputs, entrypoint behavior, ports, environment variables, configuration/mount conventions, rootless operation, primary Podman usage, Docker compatibility, image security evidence, and minimal platform-qualification fixtures.
 
 Reusable production deployment topology belongs in the planned [clickhouse-production-stack](https://github.com/datopsis/clickhouse-production-stack) repository. That project should own deployable Compose/Kubernetes/OpenShift resources, clustering, ingress and network policy, secret integration, monitoring, backups, restore automation, and environment-specific sizing. Examples here remain intentionally small and exist to explain or test behavior specific to this image.
 
 ## Quick start
 
 ```console
-docker run --detach \
+podman run --detach \
   --name clickhouse \
   --publish 18123:8123 \
   --publish 19000:9000 \
@@ -59,7 +59,7 @@ clickhouse-client --host 127.0.0.1 --port 19000 \
   --query 'SELECT version()'
 ```
 
-The included `compose.yaml` provides the same hardened local baseline. Change its example password before use.
+The included `compose.yaml` provides the same hardened local baseline. Change its example password before running `podman compose up --detach`. Podman's Compose command requires an installed Compose provider; see [Podman compatibility and version support](docs/PODMAN.md).
 
 ## Configuration
 
@@ -95,15 +95,7 @@ pre-commit run --all-files
 
 The hooks normalize text files to LF, reject common repository mistakes and private keys, lint shell scripts and the `Containerfile`, audit GitHub Actions syntax, and reject Claude co-author trailers in commit messages. The same checks run in CI. `.gitattributes` enforces LF in Git regardless of the contributor's operating system.
 
-Docker:
-
-```console
-docker build --file Containerfile \
-  --tag ghcr.io/datopsis/clickhouse-server-ubi9:test .
-IMAGE=ghcr.io/datopsis/clickhouse-server-ubi9:test bash tests/smoke.sh
-```
-
-Podman uses OCI format by default, which omits Docker health-check metadata. Use Docker image format when building locally:
+Podman is the primary documented local runtime. Podman uses OCI format by default, which does not preserve the `HEALTHCHECK` instruction, so local builds use Docker manifest format:
 
 ```console
 podman build --format docker --file Containerfile \
@@ -114,6 +106,8 @@ CONTAINER_RUNTIME=podman \
 ```
 
 Build-time arguments are `CLICKHOUSE_VERSION`, `CLICKHOUSE_CHANNEL`, `UBI_MINIMAL_IMAGE`, and `UBI_MICRO_IMAGE`. Release builds should retain immutable UBI digests and an exact ClickHouse version.
+
+The supported Podman baseline is version 5.3 or newer because 5.3.1 is the oldest engine on which the full smoke suite has been recorded. This is a tested support floor, not a claim that older versions cannot run the image. Docker Engine remains compatible and is used by GitHub Actions for its native architecture jobs and release Buildx workflow. See [Podman compatibility and version support](docs/PODMAN.md) for tested versions, rootless bind mounts, remote clients, and Compose behavior.
 
 The smoke suite verifies startup with a read-only root filesystem and no capabilities, package-manager absence, authenticated local and network queries, first-start initialization, persistent-data restarts, password-file support, the passwordless network restriction, TLS-only native initialization and health, graceful shutdown, and operation under an arbitrary OpenShift-style UID. It requires `openssl` on the test host to create an ephemeral TLS fixture.
 
@@ -147,7 +141,7 @@ Treat the effective ClickHouse data path (default `/var/lib/clickhouse`) as dura
 
 Before a production rollout, follow the [production deployment guide](docs/PRODUCTION.md). Configure inbound encryption and public/private outbound trust with the [TLS guide](docs/TLS.md). The secure ClickHouse ports (`8443`, `9440`, and `9010`) are configuration choices and are not enabled by default.
 
-See [SECURITY.md](SECURITY.md) for vulnerability reporting and the support policy. Contributor references include [rootless storage and permissions](docs/ROOTLESS.md), the [vulnerability-management process](docs/VULNERABILITY-MANAGEMENT.md), [official-image comparison](docs/IMAGE-COMPARISON.md), [versioning and release standard](docs/VERSION.md), [first-release roadmap](docs/ROADMAP.md), [CI and security process](docs/CI.md), [Endor Labs posture](docs/ENDOR.md), [badge policy](docs/BADGING.md), and [OpenSSF Scorecard controls](docs/OPENSSF_SCORECARD.md).
+See [SECURITY.md](SECURITY.md) for vulnerability reporting and the support policy. Contributor references include [Podman compatibility](docs/PODMAN.md), [rootless storage and permissions](docs/ROOTLESS.md), [qualification evidence](docs/QUALIFICATION.md), the [vulnerability-management process](docs/VULNERABILITY-MANAGEMENT.md), [official-image comparison](docs/IMAGE-COMPARISON.md), [versioning and release standard](docs/VERSION.md), [first-release roadmap](docs/ROADMAP.md), [CI and security process](docs/CI.md), [Endor Labs posture](docs/ENDOR.md), [badge policy](docs/BADGING.md), and [OpenSSF Scorecard controls](docs/OPENSSF_SCORECARD.md).
 
 ## License
 

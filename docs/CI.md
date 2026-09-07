@@ -102,14 +102,15 @@ pre-commit run --all-files --show-diff-on-failure
 ARCHITECTURE=amd64
 MACHINE=x86_64
 test "$(uname -m)" = "${MACHINE}"
-docker build --platform "linux/${ARCHITECTURE}" \
+podman build --format docker --platform "linux/${ARCHITECTURE}" \
   --file Containerfile --tag "clickhouse-server-ubi9:test-${ARCHITECTURE}" .
-test "$(docker image inspect --format '{{.Architecture}}' \
+test "$(podman image inspect --format '{{.Architecture}}' \
   "clickhouse-server-ubi9:test-${ARCHITECTURE}")" = "${ARCHITECTURE}"
-IMAGE="clickhouse-server-ubi9:test-${ARCHITECTURE}" bash tests/smoke.sh
+CONTAINER_RUNTIME=podman \
+  IMAGE="clickhouse-server-ubi9:test-${ARCHITECTURE}" bash tests/smoke.sh
 ```
 
-Running an ARM64 image under emulation on an AMD64 workstation can help diagnose portable build failures, but it does not reproduce the native ARM64 qualification. GitHub's `ubuntu-24.04-arm` runner supplies that evidence. To reproduce both jobs faithfully, run the procedure once on each native architecture and retain separate results.
+Running an ARM64 image under emulation on an AMD64 workstation can help diagnose portable build failures, but it does not reproduce the native ARM64 qualification. GitHub's `ubuntu-24.04-arm` runner supplies that evidence using Docker Engine and Buildx. To reproduce both jobs faithfully, run the procedure once on each native architecture and retain separate results. Podman and Docker exercise the same image contract but remain distinct runtime implementations, so first-release evidence records both the native CI results and the separately tested Podman version.
 
 For the scanner examples below, keep using the architecture-specific image name:
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-runtime="${CONTAINER_RUNTIME:-docker}"
+runtime="${CONTAINER_RUNTIME:-podman}"
 image="${IMAGE:-ghcr.io/datopsis/clickhouse-server-ubi9:test}"
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 run_id="${RANDOM}-$$"
