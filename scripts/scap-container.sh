@@ -5,7 +5,7 @@ readonly input_tar="/input/rootfs.tar"
 readonly scan_root="/scan-root"
 readonly results_dir="/results"
 readonly data_stream="/opt/scap/ssg-rhel9-ds.xml"
-readonly profile="xccdf_org.ssgproject.content_profile_standard"
+readonly profile="xccdf_org.ssgproject.content_profile_stig"
 
 if [[ ! -r "${input_tar}" ]]; then
     echo "SCAP input is not readable: ${input_tar}" >&2

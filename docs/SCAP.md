@@ -25,7 +25,7 @@ content changes, and rerunning both native architecture jobs.
 | OpenSCAP engine | UBI AppStream RPM `openscap-scanner-1.3.14-1.el9_8` | The build fails if that exact NEVRA cannot be installed; the complete resulting RPM inventory and `oscap --version` are retained so dependency drift is visible. |
 | ComplianceAsCode content | Release `0.1.82` ZIP | Archive SHA-256 `765e84bdce7f9055f9b9c2dd0ee2b713d4255f8eec94eac6d35ea4973c28919c` is checked before extraction. |
 | RHEL 9 data stream | `ssg-rhel9-ds.xml` from release `0.1.82` | Data-stream SHA-256 `92204daafbf4f38011671ef034fae4cffb48f708516186710346a9ec702a1f8f` is checked at build and recorded at evaluation. |
-| Discovery profile | `xccdf_org.ssgproject.content_profile_standard` | The result inventory records the profile and every returned rule/result pair. |
+| Discovery profile | `xccdf_org.ssgproject.content_profile_stig` | ComplianceAsCode 0.1.82 does not contain a RHEL 9 Standard profile. STIG is used as a broad discovery source because this project must review DISA-derived objectives; the inventory records every result without adopting the profile wholesale. |
 
 Red Hat's public UBI 9 AppStream repositories provide `openscap-scanner` for
 both x86_64 and aarch64, but do not provide `openscap-utils`. Consequently,
@@ -108,12 +108,14 @@ Each `image-security-<commit>-<architecture>` artifact includes:
 
 `summary.json` also binds the evidence to the target image ID, scanner image
 ID, architecture, profile, and data-stream SHA-256. It deliberately does not
-label an upstream Standard-profile result as container, host, CIS, or STIG
+label an upstream discovery-profile result as container, host, CIS, or STIG
 certification.
 
 ## Profile-development method
 
-The discovery implementation provides the pinned scan and inventory. The next
+The upstream RHEL 9 STIG profile is a discovery input, not a statement that
+every rule is applicable or inherited. The discovery implementation provides
+the pinned scan and inventory. The next
 profile-development pull request must:
 
 - classify every result as applicable, not applicable, inherited from the

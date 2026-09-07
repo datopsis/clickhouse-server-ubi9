@@ -72,7 +72,7 @@ python3 scripts/scap-summary.py \
     --results "${results_dir}/results.xccdf.xml" \
     --output "${results_dir}/summary.json" \
     --architecture "${architecture}" \
-    --profile xccdf_org.ssgproject.content_profile_standard \
+    --profile xccdf_org.ssgproject.content_profile_stig \
     --target-image "${target_image}" \
     --target-image-id "${target_image_id}" \
     --scanner-image "${scanner_image}" \
