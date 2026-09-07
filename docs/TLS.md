@@ -7,6 +7,8 @@ TLS has two independent directions in this image:
 
 Do not use a server certificate as an outbound trust anchor, disable certificate verification, put a private key in an image layer, or store it in Git.
 
+Use the step-by-step [CA-issued TLS rehearsal](TLS-REHEARSAL.md) to qualify connected and disconnected deployments, negative cases, renewal, and rollback for an exact image digest.
+
 ## Recommended production boundary
 
 Prefer TLS termination at the platform ingress, load balancer, or service mesh when it supports every protocol in use and the network from that proxy to ClickHouse is trusted. This centralizes certificate issuance and rotation. HTTP ingress products commonly cover HTTPS only; the ClickHouse native protocol needs a TCP-capable load balancer, TLS passthrough, or ClickHouse's `tcp_port_secure` listener.
@@ -73,7 +75,13 @@ Copy [`container/config.d/tls.example.xml`](../container/config.d/tls.example.xm
 
 `verificationMode` controls whether the server requires client certificates; `none` still provides server-authenticated TLS. Use a reviewed mutual-TLS configuration if client-certificate authentication is required.
 
-The entrypoint detects that the clear-text native port was removed and uses `tcp_port_secure` for initialization and its local health check. Certificate validation is skipped only for that loopback-only internal client, where the server certificate commonly does not identify `127.0.0.1`; external clients must validate the certificate and hostname normally.
+The entrypoint detects that the clear-text native port was removed and uses
+`tcp_port_secure` for initialization and its local health check. A dedicated,
+immutable client configuration skips certificate validation only for that
+loopback-only internal query, where a CA-issued server certificate commonly
+does not identify `127.0.0.1`. It is not merged into ClickHouse Server's
+outbound TLS configuration. External clients and server-side integrations must
+validate the certificate, chain, and hostname normally.
 
 For rootless Podman on Linux, map the files to the image identity inside Podman's user namespace and keep the private key unreadable to other container users:
 
@@ -84,6 +92,12 @@ podman unshare chown 101:0 tls.key
 ```
 
 The key may display subordinate host IDs afterward; `podman unshare ls -l tls.key` shows its container-visible ownership. For rootful Podman, use `sudo chown 101:0 tls.key` instead. Do not make the private key world-readable to bypass a mapping problem.
+
+An unreadable key does not necessarily terminate the ClickHouse process. It can
+leave the process running while HTTPS and secure native listeners are absent.
+Readiness must therefore test a required TLS listener, and operators must alert
+on certificate/key loading errors instead of treating process liveness as proof
+that TLS is available.
 
 Run the image with separate read-only mounts. Add `:Z` to bind mounts on SELinux hosts:
 
@@ -114,6 +128,17 @@ clickhouse-client --secure --host clickhouse.example.internal --port 19440 \
 ```
 
 Configure the client's CA according to that client or driver; never use an `insecure` or `skip verification` option as the production solution.
+
+Client behavior must be qualified, not inferred from `verificationMode` alone.
+In native-protocol testing with ClickHouse 26.8.2.7, `clickhouse-client` strict
+mode rejected an unrelated CA but did not reject the same trusted certificate
+when the connection used a different DNS alias. The CI rehearsal therefore
+uses `clickhouse-client` to prove native protocol and CA validation, and
+OpenSSL's `-verify_hostname` to prove the certificate presented by the native
+listener has the expected identity. Confirm that each production driver
+performs hostname verification. If a required client does not, tightly scope
+CA issuance and network access and treat the limitation as accepted risk, or
+terminate native TLS at a proxy that enforces the expected identity.
 
 ## Kubernetes and OpenShift secret mount
 

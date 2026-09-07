@@ -82,6 +82,7 @@ COPY --from=builder /runtime/etc/ /etc/
 COPY --from=builder /runtime/var/ /var/
 COPY --from=builder /runtime/docker-entrypoint-initdb.d/ /docker-entrypoint-initdb.d/
 COPY --chown=101:0 --chmod=0755 container/entrypoint.sh /usr/local/bin/clickhouse-entrypoint
+COPY --chown=101:0 --chmod=0444 container/health-client.xml /usr/local/share/clickhouse-health-client.xml
 COPY --chown=101:0 --chmod=0644 container/config.d/container.xml /etc/clickhouse-server/config.d/container.xml
 
 ENV LANG="C.UTF-8" \

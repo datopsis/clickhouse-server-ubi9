@@ -69,7 +69,7 @@ Record accepted findings in the release pull request with the advisory, affected
 Each native image matrix job runs these controls in order. AMD64 uses `ubuntu-24.04` and `linux/amd64`; ARM64 uses `ubuntu-24.04-arm` and `linux/arm64`. QEMU is not installed and does not count as native-runtime evidence.
 
 1. **Trivy configuration scan** checks the `Containerfile`, Compose configuration, and repository infrastructure configuration for high and critical misconfigurations.
-2. **Build and smoke tests** exercise startup, authentication, initialization, persistence, shutdown, read-only operation, dropped capabilities, and arbitrary UIDs.
+2. **Build and runtime tests** exercise startup, authentication, initialization, persistence, shutdown, read-only operation, dropped capabilities, arbitrary UIDs, chained CA-issued HTTPS/native TLS, public/private outbound trust, disconnected isolation, negative certificate cases, renewal, and rollback.
 3. **Trivy image scan** blocks fixed high and critical operating-system or application vulnerabilities and reports its detected OS and package count for review.
 4. **Complete SPDX inventory** uses Syft to inventory the tested filesystem and RPM database, then `scripts/augment-spdx.py` declares the three pinned ClickHouse TGZ components that have no RPM metadata. The script takes their version and channel from `Containerfile`, records Apache-2.0 licensing and package identifiers, and fails instead of duplicating a component Syft already found.
 5. **Blocking Grype SBOM scan** scans that exact SPDX document and blocks fixed high and critical vulnerabilities.

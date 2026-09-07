@@ -10,7 +10,8 @@ This roadmap is the release gate for the first supported image. A checked item m
 2. Validate [TLS.md](TLS.md) with CA-issued certificates for HTTPS and native TCP, including rotation and a fully disconnected rehearsal.
 3. Execute [PRODUCTION.md](PRODUCTION.md) on native `amd64`, native `arm64`, and OpenShift, recording resource, storage, backup/restore, shutdown, and recovery evidence.
 4. Complete the ClickHouse/UBI notice and SBOM review described in [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md).
-5. Publish the first signed GHCR release only after every blocker below is complete. Reconsider Docker Hub and paid security services after that release has real consumer demand.
+5. Establish the tailored container SCAP baseline in [SCAP.md](SCAP.md), retain both architecture reports, and review every applicability decision before enforcing selected rules.
+6. Publish the first signed GHCR release only after every blocker below is complete. Reconsider Docker Hub and paid security services after that release has real consumer demand.
 
 ### Incremental delivery plan
 
@@ -94,7 +95,29 @@ This repository owns image-specific behavior, basic usage, and minimal platform 
 
 - [ ] If no real OpenShift environment can be obtained, run a restricted Kubernetes proxy test and explicitly mark OpenShift as unvalidated and unsupported in the first release. A Kind/K3s test does not satisfy or replace the OpenShift checklist above.
 
-#### 5. Final candidate and signed release
+#### 5. Tailored SCAP image-compliance baseline
+
+**Profile discovery and tailoring**
+
+- [ ] Pin a UBI 9 OpenSCAP scanner image by digest and pin the OpenSCAP and ComplianceAsCode content versions. Record the RHEL 9 data-stream SHA-256 and reject an unexpected stream.
+- [ ] Run the upstream RHEL 9 Standard profile in report-only discovery mode against the exported image filesystem. Inventory every pass, failure, error, not-applicable, and not-checked result without claiming host or deployment compliance.
+- [ ] Create a reviewed XCCDF tailoring profile containing only rules that are applicable to and controlled by this image. Commit a rule-rationale matrix and document every host/platform exclusion.
+- [ ] Exclude kernel, boot-loader, partition, mount-layout, systemd, audit, host-networking, sysctl, SELinux-mode, and FIPS-mode controls unless the image later gains direct ownership of one. Do not use automatic remediation.
+
+**Safe CI integration**
+
+- [ ] Export the stopped, already-tested image's merged filesystem into an ephemeral directory and mount that directory read-only into the scanner. Never execute target-image content to prepare the scan.
+- [ ] Run `oscap-chroot` in a digest-pinned scanner with no Docker/Podman socket, no host namespace, no workflow secrets, and no evaluation-time network. Prove the minimum chroot-related capability; do not use `--privileged`, Podman-in-Podman, or broad host mounts.
+- [ ] Generate architecture-specific ARF XML, XCCDF XML, and HTML reports containing the image digest, architecture, scanner/content versions, data-stream hash, and tailoring hash. Retain them with the other image-security evidence.
+- [ ] Run report-only on native AMD64 and ARM64 for at least three scheduled or `main` executions. Evaluation errors fail immediately; selected-rule findings become blocking only after the baseline is stable and reviewed.
+- [ ] Cross-check one exact image digest with `oscap-podman` on a disposable RHEL 9 host. Reconcile platform/applicability differences before enforcement; do not grant routine hosted CI root or engine access merely to match that command.
+
+**Exit evidence**
+
+- [ ] Retain the discovery report, final tailoring, rule-rationale/exclusion review, three stable two-architecture runs, capability inspection, and `oscap-chroot` versus `oscap-podman` comparison.
+- [ ] State precisely that the result covers selected image-filesystem controls and is not CIS/STIG certification of the host, OpenShift cluster, or production deployment.
+
+#### 6. Final candidate and signed release
 
 - [ ] Refresh and review the UBI Minimal and Micro manifest-list digests together. Confirm both architectures resolve, rebuild from scratch, and retain the old/new digest and vulnerability comparison.
 - [ ] Confirm the selected ClickHouse release/channel and archive checksums, run both native CI jobs, and complete the current unfixed-finding triage with owner, rationale, compensating controls, and review expiry.
@@ -124,6 +147,10 @@ This repository owns image-specific behavior, basic usage, and minimal platform 
 - [ ] Review workflow permissions, immutable action pins, secret-scanning alerts, and CodeQL/Scorecard findings.
 - [ ] Test private vulnerability reporting and confirm that `SECURITY.md` names a monitored response path.
 - [ ] Complete license, redistribution, trademark, and upstream-notice review for ClickHouse and Red Hat UBI content.
+- [ ] Complete an image threat model covering build inputs, CI trust, registry/release publication, runtime identity, storage, ingress/egress TLS, secrets, and the boundary with `clickhouse-production-stack`.
+- [ ] Define and exercise a UBI rebuild cadence and response SLA for exploitable critical/high findings, including unfixed findings that later receive a vendor fix.
+- [ ] Compare final SBOM and filesystem/package inventories against the reviewed baseline and investigate unexpected additions, removals, setuid/setgid files, or world-writable paths.
+- [ ] Exercise password/key/certificate rotation and failure paths while confirming logs and retained CI evidence do not expose secret material.
 
 ### Release mechanics and documentation
 

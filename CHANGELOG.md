@@ -26,6 +26,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Native AMD64 and ARM64 CI builds, smoke tests, vulnerability evidence, and release-manifest architecture validation.
 - Explicit repository scope and official-image storage compatibility guidance, including the XML-based replacement for the unreleased `CLICKHOUSE_DATA_DIR` interface.
 - Podman-first user procedures, a tested Podman support baseline, and rootless user-namespace permission guidance.
+- Native CA-issued TLS rehearsal covering HTTPS, native TCP, connected/disconnected outbound trust, negative cases, renewal, rollback, and operator evidence procedures.
+- Dedicated loopback-only TLS health client configuration that supports CA-issued certificate chains without weakening server-side outbound verification.
 
 ### Changed
 

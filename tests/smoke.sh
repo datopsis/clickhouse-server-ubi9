@@ -83,12 +83,14 @@ wait_healthy() {
 wait_failed_with() {
     local server_name=$1
     local expected_message=$2
+    local logs
     local running
 
     for _ in {1..30}; do
         running="$("${runtime}" inspect --format '{{.State.Running}}' "${server_name}")"
         if [[ "${running}" == false ]]; then
-            "${runtime}" logs "${server_name}" 2>&1 | grep -Fq "${expected_message}"
+            logs="$("${runtime}" logs "${server_name}" 2>&1)"
+            grep -Fq "${expected_message}" <<< "${logs}"
             return
         fi
         sleep 1
@@ -137,8 +139,9 @@ actual_version="$(query_server "${primary}" "${password}" 'SELECT version()')"
 expected_version="$("${runtime}" inspect --format '{{index .Config.Labels "org.opencontainers.image.version"}}' "${image}")"
 test "${actual_version}" = "${expected_version}"
 test "$("${runtime}" inspect --format '{{.Config.User}}' "${image}")" = "101:0"
-if "${runtime}" inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "${image}" | \
-    grep -q '^CLICKHOUSE_DATA_DIR='; then
+image_environment="$("${runtime}" inspect --format \
+    '{{range .Config.Env}}{{println .}}{{end}}' "${image}")"
+if grep -q '^CLICKHOUSE_DATA_DIR=' <<< "${image_environment}"; then
     echo "Image metadata unexpectedly contains CLICKHOUSE_DATA_DIR" >&2
     exit 1
 fi

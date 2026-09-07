@@ -3,6 +3,7 @@ set -Eeuo pipefail
 shopt -s nullglob
 
 readonly CONFIG_FILE="${CLICKHOUSE_CONFIG:-/etc/clickhouse-server/config.xml}"
+readonly HEALTH_CLIENT_CONFIG="/usr/local/share/clickhouse-health-client.xml"
 readonly GENERATED_DIR="/tmp/clickhouse-entrypoint"
 readonly USERS_FILE="${GENERATED_DIR}/users.xml"
 readonly INIT_DIR="/docker-entrypoint-initdb.d"
@@ -145,7 +146,13 @@ client_command() {
     local -n command_ref=$1
     local port
 
-    command_ref=(clickhouse-client --host 127.0.0.1 --user default)
+    command_ref=(
+        env -u CLICKHOUSE_CONFIG
+        clickhouse-client
+        --config-file "${HEALTH_CLIENT_CONFIG}"
+        --host 127.0.0.1
+        --user default
+    )
     if [[ -n "${CLICKHOUSE_PASSWORD}" ]]; then
         command_ref+=(--password "${CLICKHOUSE_PASSWORD}")
     fi
@@ -166,7 +173,7 @@ client_command() {
 
     # This client connects only over container loopback for initialization and
     # health. External clients must validate the server certificate normally.
-    command_ref+=(--port "${port}" --secure --accept-invalid-certificate)
+    command_ref+=(--port "${port}" --secure)
 }
 
 healthcheck() {

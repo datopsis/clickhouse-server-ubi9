@@ -5,6 +5,7 @@
 .DS_Store
 .pre-commit-cache/
 .smoke-secrets.*/
+.tls-rehearsal.*/
 /clickhouse-server-ubi9.spdx.json
 /grype.sarif
 /grype-all.json

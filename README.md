@@ -109,7 +109,7 @@ Build-time arguments are `CLICKHOUSE_VERSION`, `CLICKHOUSE_CHANNEL`, `UBI_MINIMA
 
 The supported Podman baseline is version 5.3 or newer because 5.3.1 is the oldest engine on which the full smoke suite has been recorded. This is a tested support floor, not a claim that older versions cannot run the image. Docker Engine remains compatible and is used by GitHub Actions for its native architecture jobs and release Buildx workflow. See [Podman compatibility and version support](docs/PODMAN.md) for tested versions, rootless bind mounts, remote clients, and Compose behavior.
 
-The smoke suite verifies startup with a read-only root filesystem and no capabilities, package-manager absence, authenticated local and network queries, first-start initialization, persistent-data restarts, password-file support, the passwordless network restriction, TLS-only native initialization and health, graceful shutdown, and operation under an arbitrary OpenShift-style UID. It requires `openssl` on the test host to create an ephemeral TLS fixture.
+The smoke suite verifies startup with a read-only root filesystem and no capabilities, package-manager absence, authenticated local and network queries, first-start initialization, persistent-data restarts, password-file support, the passwordless network restriction, TLS-only native initialization and health, graceful shutdown, and operation under an arbitrary OpenShift-style UID. The separate CA-issued rehearsal validates chained certificates, HTTPS/native TLS, connected and disconnected outbound trust, negative cases, rotation, and rollback. Both require `openssl` on the test host; the TLS rehearsal also requires `curl`.
 
 ## Release process
 
@@ -139,9 +139,9 @@ ClickHouse commonly benefits from `nofile=262144:262144`. Optional capabilities 
 
 Treat the effective ClickHouse data path (default `/var/lib/clickhouse`) as durable state, back it up according to your ClickHouse topology, and pin production deployments to an image digest rather than a mutable tag.
 
-Before a production rollout, follow the [production deployment guide](docs/PRODUCTION.md). Configure inbound encryption and public/private outbound trust with the [TLS guide](docs/TLS.md). The secure ClickHouse ports (`8443`, `9440`, and `9010`) are configuration choices and are not enabled by default.
+Before a production rollout, follow the [production deployment guide](docs/PRODUCTION.md). Configure inbound encryption and public/private outbound trust with the [TLS guide](docs/TLS.md), then execute the [CA-issued TLS rehearsal](docs/TLS-REHEARSAL.md). The secure ClickHouse ports (`8443`, `9440`, and `9010`) are configuration choices and are not enabled by default.
 
-See [SECURITY.md](SECURITY.md) for vulnerability reporting and the support policy. Contributor references include [Podman compatibility](docs/PODMAN.md), [rootless storage and permissions](docs/ROOTLESS.md), [qualification evidence](docs/QUALIFICATION.md), the [vulnerability-management process](docs/VULNERABILITY-MANAGEMENT.md), [official-image comparison](docs/IMAGE-COMPARISON.md), [versioning and release standard](docs/VERSION.md), [first-release roadmap](docs/ROADMAP.md), [CI and security process](docs/CI.md), [Endor Labs posture](docs/ENDOR.md), [badge policy](docs/BADGING.md), and [OpenSSF Scorecard controls](docs/OPENSSF_SCORECARD.md).
+See [SECURITY.md](SECURITY.md) for vulnerability reporting and the support policy. Contributor references include [Podman compatibility](docs/PODMAN.md), [rootless storage and permissions](docs/ROOTLESS.md), [qualification evidence](docs/QUALIFICATION.md), the [vulnerability-management process](docs/VULNERABILITY-MANAGEMENT.md), [official-image comparison](docs/IMAGE-COMPARISON.md), [versioning and release standard](docs/VERSION.md), [first-release roadmap](docs/ROADMAP.md), [CI and security process](docs/CI.md), [SCAP compliance scanning](docs/SCAP.md), [Endor Labs posture](docs/ENDOR.md), [badge policy](docs/BADGING.md), and [OpenSSF Scorecard controls](docs/OPENSSF_SCORECARD.md).
 
 ## License
 

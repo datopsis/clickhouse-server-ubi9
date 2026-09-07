@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<config>
+    <!-- Used only by the entrypoint's loopback initialization and health query. -->
+    <accept-invalid-certificate>1</accept-invalid-certificate>
+    <openSSL>
+        <client>
+            <loadDefaultCAFile>false</loadDefaultCAFile>
+            <verificationMode>none</verificationMode>
+            <invalidCertificateHandler>
+                <name>AcceptCertificateHandler</name>
+            </invalidCertificateHandler>
+        </client>
+    </openSSL>
+</config>
