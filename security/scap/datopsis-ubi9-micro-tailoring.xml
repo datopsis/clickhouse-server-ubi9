@@ -2,7 +2,7 @@
 <xccdf:Tailoring xmlns:xccdf="http://checklists.nist.gov/xccdf/1.2"
                  id="xccdf_org.datopsis.content_tailoring_ubi9_micro_container">
   <xccdf:benchmark href="ssg-rhel9-ds.xml"/>
-  <xccdf:version time="2026-09-07">1.0.0</xccdf:version>
+  <xccdf:version time="2026-09-07T00:00:00Z">1.0.0</xccdf:version>
   <xccdf:Profile id="xccdf_org.datopsis_profile_ubi9_micro_container">
     <xccdf:title override="true">Datopsis UBI 9 Micro container filesystem</xccdf:title>
     <xccdf:description override="true">Image-owned, offline-filesystem checks selected from the pinned ComplianceAsCode RHEL 9 content. This profile does not assess the host, orchestration platform, runtime volumes, or a complete ClickHouse deployment.</xccdf:description>
