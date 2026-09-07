@@ -111,6 +111,40 @@ ID, architecture, profile, and data-stream SHA-256. It deliberately does not
 label an upstream discovery-profile result as container, host, CIS, or STIG
 certification.
 
+## Initial native discovery result
+
+[GitHub Actions run 34151979084](https://github.com/datopsis/clickhouse-server-ubi9/actions/runs/34151979084)
+qualified commit `c099690` on both native architectures. The retained AMD64
+and ARM64 inventories contained the same 1,540 rule IDs and results:
+
+| Result | AMD64 | ARM64 |
+| --- | ---: | ---: |
+| `pass` | 59 | 59 |
+| `fail` | 7 | 7 |
+| `notapplicable` | 410 | 410 |
+| `notchecked` | 1 | 1 |
+| `notselected` | 1,063 | 1,063 |
+| `error`, `unknown`, or missing | 0 | 0 |
+
+OpenSCAP returned its documented noncompliance status 2 on both runners. The
+seven discovery failures were:
+
+- `accounts_umask_etc_bashrc`;
+- `accounts_umask_etc_profile`;
+- `configure_crypto_policy`;
+- `file_groupownership_system_commands_dirs`;
+- `file_ownership_binary_dirs`;
+- `network_configure_name_resolution`;
+- `package_crypto-policies_installed`.
+
+`security_patches_up_to_date` was `notchecked`. None of these results is an
+adopted container control yet. The next package must inspect the associated
+OVAL logic, distinguish image-owned behavior from absent host facilities,
+compare the result with the current Containerfile/SBOM, and document its
+applicability decision and rationale before selecting or excluding the rule.
+In particular, a profile `pass` is not sufficient evidence that a rule is
+applicable to a minimal container.
+
 ## Profile-development method
 
 The upstream RHEL 9 STIG profile is a discovery input, not a statement that
