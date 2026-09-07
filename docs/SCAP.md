@@ -176,6 +176,21 @@ remain deployment- or host-owned. Patch currency is evaluated through SBOM,
 Trivy, Grype, pinned rebuilds, and vulnerability response rather than an
 in-place package-manager rule.
 
+### Initial tailored qualification
+
+[GitHub Actions run 34162299349](https://github.com/datopsis/clickhouse-server-ubi9/actions/runs/34162299349)
+evaluated the profile on native AMD64 and ARM64 during pull-request review.
+Each architecture produced exactly 36 `pass` and 1,504 `notselected` results,
+OpenSCAP exit code 0, no operational error, and the same complete rule/result
+inventory. Both summaries recorded tailoring SHA-256
+`f6ab64233c73cdd136f70444eae71c2188ef618e51a5c5e9bd6a6e80653b8b22`.
+The smoke suite also confirmed that ClickHouse still ran as UID 101 while
+`/usr/bin`, `/usr/bin/clickhouse`, and the entrypoint were owned by `0:0`.
+
+This pull-request run qualifies the implementation but does not count toward
+the three required scheduled or `main` stabilization runs. That count starts
+after merge and restarts whenever the content or tailoring changes.
+
 ## Profile maintenance method
 
 The upstream RHEL 9 STIG profile remains a discovery input, not a statement
