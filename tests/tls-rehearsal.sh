@@ -197,6 +197,17 @@ EOF
 chmod 0444 "${secret_dir}"/*.crt "${secret_dir}"/*.pem \
     "${secret_dir}"/*.xml
 chmod 0400 "${secret_dir}"/*.key
+# These disposable leaf keys are owned by the CI runner, while the image runs
+# as UID 101. Make only leaf fixtures readable across that bind-mount boundary;
+# CA signing keys remain 0400 and are never mounted. Production uses the
+# namespace-aware ownership procedure in docs/TLS.md instead.
+chmod 0444 \
+    "${secret_dir}/connected-v1.key" \
+    "${secret_dir}/connected-v2.key" \
+    "${secret_dir}/connected-endpoint.key" \
+    "${secret_dir}/disconnected-v1.key" \
+    "${secret_dir}/disconnected-v2.key" \
+    "${secret_dir}/disconnected-endpoint.key"
 
 runtime_call network create "${connected_network}" >/dev/null
 runtime_call network create --internal "${disconnected_network}" >/dev/null
