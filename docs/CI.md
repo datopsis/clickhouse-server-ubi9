@@ -6,7 +6,7 @@ This repository treats the built image as the primary deliverable. CI therefore 
 
 | Workflow | Triggers | Purpose |
 | --- | --- | --- |
-| `CI` | Pull requests, pushes to `main`, weekly schedule, manual dispatch | Lint and workflow audit, followed by native AMD64 and ARM64 image builds, smoke tests, Trivy scans, Syft SBOMs, and Grype scans. |
+| `CI` | Pull requests, pushes to `main`, weekly schedule, manual dispatch | Lint and workflow audit, followed by native AMD64 and ARM64 image builds, smoke tests, isolated SCAP discovery, Trivy scans, Syft SBOMs, and Grype scans. |
 | `CodeQL` | Workflow changes, weekly schedule, manual dispatch | Static analysis of GitHub Actions with the security-extended query suite. |
 | `OpenSSF Scorecard` | Pushes to `main`, ruleset changes, weekly schedule, manual dispatch | Supply-chain posture analysis, SARIF upload, and public Scorecard publication. |
 | `Release image` | Tags matching `v*` | Tag/input/changelog validation, multi-architecture publish, digest scans, evidence generation, keyless signing, and GitHub release creation. |
@@ -24,6 +24,7 @@ Workflow-level permissions default to read-only. Write scopes are applied only t
 | Runtime behavior | Native GitHub-hosted AMD64 and ARM64 runners, Buildx, and `tests/smoke.sh` | Each architecture's exact test image starts and stops correctly under production-oriented restrictions and supports documented initialization/authentication behavior. Runner and loaded-image assertions prevent emulation or a mislabeled image from being treated as native evidence. | Hosted-runner tests do not replace OpenShift qualification or application-specific performance testing. |
 | Image vulnerabilities | Trivy image scan | No fixed high/critical findings according to Trivy's current databases and vendor severity selection. | `ignore-unfixed` intentionally leaves unfixed risk for human release review. |
 | Independent inventory and scan | Syft plus Grype | SPDX inventory of the tested image and a second vulnerability matcher/database; fixed high/critical findings block. | Overlap is intentional, but scanner agreement is not proof of absence. |
+| Filesystem compliance discovery | Pinned OpenSCAP engine and ComplianceAsCode RHEL 9 Standard profile | Complete architecture-specific inventory of upstream rule results against a root-owner-preserving export; scanner errors block. | Findings are non-blocking until applicability is reviewed and a container-specific tailoring is approved. It is not host, CIS, or STIG certification. |
 | Supply-chain posture | OpenSSF Scorecard | Repository and build-pipeline practice signals published independently. | Historical and popularity signals improve only through genuine project operation. |
 | Release integrity | BuildKit attestations, Cosign, GHCR, and GitHub Releases | Digest-bound multi-architecture artifact, SBOM/provenance evidence, keyless signature, and durable release assets. | The tag workflow publishes before post-build scans; a failed candidate must be quarantined or removed. |
 
@@ -57,7 +58,7 @@ Audit these settings before each release and after organization policy changes. 
 For every required run, verify the event and head SHA first. Then review the following evidence:
 
 - `lint`: every hook and the release-tag test ran, Zizmor audited every workflow, and there are no warnings or annotations hidden behind a successful wrapper.
-- `image (amd64)` and `image (arm64)`: the native runner assertion, loaded-image architecture assertion, configuration scan count, ClickHouse version printed by the smoke suite, Trivy target/OS/package count and result count, SBOM package count, and both Grype's blocking fixed-findings result and full finding inventory. The aggregate `image` job is only the merge gate; inspect the two jobs that produced the evidence.
+- `image (amd64)` and `image (arm64)`: the native runner assertion, loaded-image architecture assertion, configuration scan count, ClickHouse version printed by the smoke suite, SCAP execution outcome and result counts, Trivy target/OS/package count and result count, SBOM package count, and both Grype's blocking fixed-findings result and full finding inventory. The aggregate `image` job is only the merge gate; inspect the two jobs that produced the evidence.
 - `CodeQL` and Scorecard: analysis covered the intended files, SARIF processing completed, and the Security tab has no new open alert. A successful upload is not the same as zero findings.
 - skipped steps: PR SARIF publication is intentionally skipped to avoid permission failures from untrusted forks; it runs on `main`. A skipped build, smoke test, or scanner is not acceptable.
 - warnings: Trivy may use another vendor's severity when Red Hat data is absent. Grype's `only-fixed` option can ignore real but currently unfixable findings. Review both against Red Hat and ClickHouse advisories before a release.
@@ -70,11 +71,12 @@ Each native image matrix job runs these controls in order. AMD64 uses `ubuntu-24
 
 1. **Trivy configuration scan** checks the `Containerfile`, Compose configuration, and repository infrastructure configuration for high and critical misconfigurations.
 2. **Build and runtime tests** exercise startup, authentication, initialization, persistence, shutdown, read-only operation, dropped capabilities, arbitrary UIDs, chained CA-issued HTTPS/native TLS, public/private outbound trust, disconnected isolation, negative certificate cases, renewal, and rollback.
-3. **Trivy image scan** blocks fixed high and critical operating-system or application vulnerabilities and reports its detected OS and package count for review.
-4. **Complete SPDX inventory** uses Syft to inventory the tested filesystem and RPM database, then `scripts/augment-spdx.py` declares the three pinned ClickHouse TGZ components that have no RPM metadata. The script takes their version and channel from `Containerfile`, records Apache-2.0 licensing and package identifiers, and fails instead of duplicating a component Syft already found.
-5. **Blocking Grype SBOM scan** scans that exact SPDX document and blocks fixed high and critical vulnerabilities.
-6. **Full Grype inventory** performs a non-blocking scan of the same SBOM without filtering unfixed matches and retains `grype-all.json`. Non-blocking means “record for triage,” not “accepted risk.”
-7. **Artifact and SARIF publication** retains the inventory and results for investigation and publishes fixed Grype findings from non-PR runs to GitHub code scanning.
+3. **OpenSCAP discovery** builds a pinned-input UBI scanner, exports but never executes the stopped target, preserves filesystem ownership inside an isolated tmpfs, and evaluates the pinned RHEL 9 Standard profile without network or an engine socket. Findings remain report-only; execution errors block.
+4. **Trivy image scan** blocks fixed high and critical operating-system or application vulnerabilities and reports its detected OS and package count for review.
+5. **Complete SPDX inventory** uses Syft to inventory the tested filesystem and RPM database, then `scripts/augment-spdx.py` declares the three pinned ClickHouse TGZ components that have no RPM metadata. The script takes their version and channel from `Containerfile`, records Apache-2.0 licensing and package identifiers, and fails instead of duplicating a component Syft already found.
+6. **Blocking Grype SBOM scan** scans that exact SPDX document and blocks fixed high and critical vulnerabilities.
+7. **Full Grype inventory** performs a non-blocking scan of the same SBOM without filtering unfixed matches and retains `grype-all.json`. Non-blocking means “record for triage,” not “accepted risk.”
+8. **Artifact and SARIF publication** retains the inventory and results for investigation and publishes fixed Grype findings from non-PR runs to GitHub code scanning.
 
 Trivy and Grype deliberately overlap. They use different databases and matching logic, so a clean result from one does not replace the other. Both gates ignore vulnerabilities without an upstream fix; unfixed findings still require periodic review before release. Scanner disagreements should be investigated against the vendor advisory and documented if accepted.
 
@@ -85,6 +87,7 @@ Trivy and Grype deliberately overlap. They use different databases and matching 
 | `clickhouse-server-ubi9-<architecture>.spdx.json` | CI artifact `image-security-<commit>-<architecture>` | 14 days | Package inventory for the exact native AMD64 or ARM64 test image. |
 | `grype-<architecture>.sarif` | Same architecture-specific CI artifact and GitHub code scanning on non-PR runs | 14 days for the downloadable artifact | Machine-readable findings and architecture-specific review evidence. |
 | `grype-all-<architecture>.json` | Architecture-specific CI artifact | 14 days | Complete point-in-time inventory including unfixed Low and Medium matches for human triage. The release workflow separately retains `grype-all.json` for 30 days. |
+| `scap-results-<architecture>/` | Architecture-specific CI artifact | 14 days | Discovery ARF/XCCDF/HTML, full JSON rule inventory, exit code, data-stream hash, scanner version, and RPM versions for the exact target/scanner image IDs. |
 | `image.spdx.json` | Tag-run artifact and GitHub release asset | 30-day Actions copy; release asset retained with the release | Downloadable inventory for the published digest. |
 | Release `grype.sarif` | Tag-run artifact and GitHub code scanning | 30 days for the downloadable artifact | Point-in-time scan evidence; not attached to the release because vulnerability data ages rapidly. |
 | BuildKit SBOM/provenance and complete SPDX attestation | OCI registry attestations; downloaded together as `image.intoto.jsonl` | Lifetime of the package/release | Registry-native build evidence plus the keyless, digest-bound copy of `image.spdx.json`. |
@@ -109,6 +112,10 @@ test "$(podman image inspect --format '{{.Architecture}}' \
 CONTAINER_RUNTIME=podman \
   IMAGE="clickhouse-server-ubi9:test-${ARCHITECTURE}" bash tests/smoke.sh
 ```
+
+Build and run the isolated SCAP discovery scanner with the Podman procedure in
+[SCAP.md](SCAP.md). It intentionally creates a second tooling image and does
+not alter the ClickHouse deliverable.
 
 Running an ARM64 image under emulation on an AMD64 workstation can help diagnose portable build failures, but it does not reproduce the native ARM64 qualification. GitHub's `ubuntu-24.04-arm` runner supplies that evidence using Docker Engine and Buildx. To reproduce both jobs faithfully, run the procedure once on each native architecture and retain separate results. Podman and Docker exercise the same image contract but remain distinct runtime implementations, so first-release evidence records both the native CI results and the separately tested Podman version.
 
