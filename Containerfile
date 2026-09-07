@@ -77,7 +77,10 @@ LABEL org.opencontainers.image.title="ClickHouse Server on Red Hat UBI 9" \
       org.opencontainers.image.vendor="Datopsis" \
       org.opencontainers.image.version="${CLICKHOUSE_VERSION}"
 
-COPY --from=builder /runtime/ /
+COPY --from=builder /runtime/usr/ /usr/
+COPY --from=builder /runtime/etc/ /etc/
+COPY --from=builder /runtime/var/ /var/
+COPY --from=builder /runtime/docker-entrypoint-initdb.d/ /docker-entrypoint-initdb.d/
 COPY --chown=101:0 --chmod=0755 container/entrypoint.sh /usr/local/bin/clickhouse-entrypoint
 COPY --chown=101:0 --chmod=0644 container/config.d/container.xml /etc/clickhouse-server/config.d/container.xml
 
