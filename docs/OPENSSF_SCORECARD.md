@@ -93,7 +93,7 @@ Use a GitHub token with read access. Do not place the token on the command line 
 
 ```bash
 export GITHUB_AUTH_TOKEN="$(gh auth token)"
-docker run --rm \
+podman run --rm \
   --env GITHUB_AUTH_TOKEN \
   ghcr.io/ossf/scorecard:v5.5.0@sha256:2ad2ced1cc8d080a589fac211944834c0da3dd82a4d7b0e70a642b6be76987d7 \
   --repo=github.com/datopsis/clickhouse-server-ubi9 \

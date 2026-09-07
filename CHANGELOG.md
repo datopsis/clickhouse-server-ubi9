@@ -18,3 +18,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - A documented container and repository versioning and release standard.
 - CI security-layer, enforcement, result-review, and Endor Labs guidance.
 - Structured bug reporting and pull-request review checklists.
+- Production, TLS, disconnected-deployment, vulnerability-triage, upstream-license, and official-image comparison documentation.
+- Entrypoint initialization and health checks over TLS-only native-port configurations.
+- Complete Grype JSON inventories, including unfixed findings, retained beside the fixed High/Critical blocking result in CI and release runs.
+- Explicit ClickHouse TGZ component records in SPDX inventories and a keyless, digest-bound complete SPDX release attestation.
+- Rootless storage guidance for named volumes, bind mounts, Kubernetes/OpenShift identities, custom data paths, additional disks, SELinux, and NFS.
+- Native AMD64 and ARM64 CI builds, smoke tests, vulnerability evidence, and release-manifest architecture validation.
+- Explicit repository scope and official-image storage compatibility guidance, including the XML-based replacement for the unreleased `CLICKHOUSE_DATA_DIR` interface.
+- Podman-first user procedures, a tested Podman support baseline, and rootless user-namespace permission guidance.
+
+### Changed
+
+- The entrypoint now derives primary and additional writable directories from the effective ClickHouse configuration, rejects the misleading `CLICKHOUSE_DATA_DIR` variable, and reports non-root permission failures before server startup.

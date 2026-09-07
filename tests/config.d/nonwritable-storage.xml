@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<clickhouse>
+    <path>/etc/clickhouse-data/</path>
+</clickhouse>

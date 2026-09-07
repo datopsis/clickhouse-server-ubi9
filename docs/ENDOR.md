@@ -26,7 +26,9 @@ The controls must exist for users and risk reduction first. A later score increa
 
 ## Current integration decision
 
-As of 2026-09-06, no Endor namespace or authorization policy is configured in this repository and no Endor result is available to claim as a baseline. Adding the GitHub Action now would either fail CI, require a long-lived secret, or remain skipped forever. It would also duplicate existing scans without creating an Endor-monitored default-branch baseline.
+As of 2026-09-06, Endor's pricing page offers a free **AURI for Developers** tier for individual, local editor use. It requires no account and provides read-only vulnerability intelligence, but it has no dashboard, policies, or scan history. Endor's documentation says standalone `endorctl` scanning requires an Endor namespace; the Open Source Core and Pro platform tiers use sales-based, per-contributor licensing. The free developer tool is therefore not a free hosted open-source-project/CI tier.
+
+No Endor namespace or authorization policy is configured in this repository and no Endor result is available to claim as a baseline. Do not add an Endor GitHub Action now. Without a purchased or explicitly sponsored tenant it would fail, require inappropriate credentials, or remain permanently skipped, while duplicating parts of the existing scan stack. Continue using the existing free/open tools—Trivy, Grype, Syft, CodeQL, Zizmor, and OpenSSF Scorecard—and revisit Endor only if Endor offers the project a suitable program or Datopsis decides the distinct reachability/RSPM benefits justify procurement.
 
 Do not add `ENDOR_API_CREDENTIALS_KEY` or `ENDOR_API_CREDENTIALS_SECRET` merely to get started. Endor recommends GitHub OIDC keyless authentication for CI. Installing the Endor GitHub App is also an organization-level trust decision because cloud scanning grants the app repository access and sends retained scan metadata to the Endor tenant. Datopsis must review the requested permissions and Endor's data-handling terms before installation.
 
@@ -55,6 +57,9 @@ For each review, capture the Endor project/version, scan time, policy version, f
 
 Authoritative references:
 
+- [Current Endor Labs pricing and Developer-tier limits](https://www.endorlabs.com/pricing)
+- [AURI for Developers](https://www.endorlabs.com/platform/developer)
+- [Endor Labs license model](https://docs.endorlabs.com/introduction/licenses)
 - [Endor Scores](https://docs.endorlabs.com/scan/sca/scores)
 - [Repository code-quality score factors](https://docs.endorlabs.com/scan/sca/scores/repository-scores/code-quality-score-factors/)
 - [Repository activity score factors](https://docs.endorlabs.com/scan/sca/scores/repository-scores/activity-score-factors)

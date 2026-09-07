@@ -43,6 +43,12 @@ jobs:
       - name: Test release tag validation
         run: bash tests/release-tag.sh
 
+      - name: Test entrypoint path preparation
+        run: bash tests/entrypoint-paths.sh
+
+      - name: Test SPDX augmentation
+        run: python -m unittest discover --start-directory tests --pattern "test_*.py"
+
       - name: Audit GitHub Actions security
         uses: zizmorcore/zizmor-action@70fb788f84895a7701f5643d103d587e460b5c99 # v0.6.3
         with:
@@ -51,11 +57,29 @@ jobs:
           min-severity: medium
 
   image:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    name: image (${{ matrix.architecture }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - architecture: amd64
+            runner: ubuntu-24.04
+            platform: linux/amd64
+            machine: x86_64
+          - architecture: arm64
+            runner: ubuntu-24.04-arm
+            platform: linux/arm64
+            machine: aarch64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
     permissions:
       contents: read
       security-events: write
+    env:
+      TEST_IMAGE: ghcr.io/datopsis/clickhouse-server-ubi9:test-${{ matrix.architecture }}
+      SBOM_FILE: clickhouse-server-ubi9-${{ matrix.architecture }}.spdx.json
+      GRYPE_SARIF: grype-${{ matrix.architecture }}.sarif
+      GRYPE_ALL: grype-all-${{ matrix.architecture }}.json
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -64,6 +88,11 @@ jobs:
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
+      - name: Confirm native runner architecture
+        env:
+          EXPECTED_MACHINE: ${{ matrix.machine }}
+        run: test "$(uname -m)" = "${EXPECTED_MACHINE}"
 
       - name: Scan build configuration
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
@@ -79,21 +108,30 @@ jobs:
         with:
           context: .
           file: Containerfile
+          platforms: ${{ matrix.platform }}
           load: true
           push: false
-          tags: ghcr.io/datopsis/clickhouse-server-ubi9:test
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ${{ env.TEST_IMAGE }}
+          cache-from: type=gha,scope=image-${{ matrix.architecture }}
+          cache-to: type=gha,mode=max,scope=image-${{ matrix.architecture }}
+
+      - name: Confirm loaded image architecture
+        env:
+          EXPECTED_ARCHITECTURE: ${{ matrix.architecture }}
+        run: >-
+          test "$(docker image inspect --format '{{.Architecture}}' "${TEST_IMAGE}")"
+          = "${EXPECTED_ARCHITECTURE}"
 
       - name: Run smoke tests
         env:
-          IMAGE: ghcr.io/datopsis/clickhouse-server-ubi9:test
+          CONTAINER_RUNTIME: docker
+          IMAGE: ${{ env.TEST_IMAGE }}
         run: bash tests/smoke.sh
 
       - name: Scan image
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: ghcr.io/datopsis/clickhouse-server-ubi9:test
+          image-ref: ${{ env.TEST_IMAGE }}
           format: table
           exit-code: "1"
           ignore-unfixed: true
@@ -102,39 +140,72 @@ jobs:
       - name: Generate SPDX SBOM with Syft
         uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
         with:
-          image: ghcr.io/datopsis/clickhouse-server-ubi9:test
+          image: ${{ env.TEST_IMAGE }}
           format: spdx-json
-          output-file: clickhouse-server-ubi9.spdx.json
+          output-file: ${{ env.SBOM_FILE }}
           syft-version: v1.51.1
           upload-artifact: false
           upload-release-assets: false
+
+      - name: Add declared ClickHouse TGZ components to SPDX SBOM
+        run: >-
+          python scripts/augment-spdx.py
+          --input "${SBOM_FILE}"
+          --output "${SBOM_FILE}"
 
       - name: Scan Syft SBOM with Grype
         id: grype
         uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
         with:
-          sbom: clickhouse-server-ubi9.spdx.json
+          sbom: ${{ env.SBOM_FILE }}
           output-format: sarif
-          output-file: grype.sarif
+          output-file: ${{ env.GRYPE_SARIF }}
           severity-cutoff: high
           only-fixed: true
           fail-build: true
+          cache-db: true
+          grype-version: v0.118.0
+
+      - name: Record all Grype findings
+        if: ${{ always() && hashFiles(env.SBOM_FILE) != '' }}
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
+        with:
+          sbom: ${{ env.SBOM_FILE }}
+          output-format: json
+          output-file: ${{ env.GRYPE_ALL }}
+          severity-cutoff: negligible
+          only-fixed: false
+          fail-build: false
+          cache-db: true
           grype-version: v0.118.0
 
       - name: Retain security artifacts
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: image-security-${{ github.sha }}
+          name: image-security-${{ github.sha }}-${{ matrix.architecture }}
           path: |
-            clickhouse-server-ubi9.spdx.json
-            grype.sarif
+            ${{ env.SBOM_FILE }}
+            ${{ env.GRYPE_SARIF }}
+            ${{ env.GRYPE_ALL }}
           if-no-files-found: warn
           retention-days: 14
 
       - name: Publish Grype findings to code scanning
-        if: ${{ always() && github.event_name != 'pull_request' && hashFiles('grype.sarif') != '' }}
+        if: ${{ always() && github.event_name != 'pull_request' && hashFiles(env.GRYPE_SARIF) != '' }}
         uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
         with:
-          sarif_file: grype.sarif
-          category: grype-image
+          sarif_file: ${{ env.GRYPE_SARIF }}
+          category: grype-image-${{ matrix.architecture }}
+
+  image-result:
+    name: image
+    if: ${{ always() }}
+    needs: image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require every native image job
+        env:
+          MATRIX_RESULT: ${{ needs.image.result }}
+        run: test "${MATRIX_RESULT}" = success

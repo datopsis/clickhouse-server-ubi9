@@ -7,6 +7,7 @@
 .smoke-secrets.*/
 /clickhouse-server-ubi9.spdx.json
 /grype.sarif
+/grype-all.json
 /image.intoto.jsonl
 /image.sigstore.json
 /image.spdx.json

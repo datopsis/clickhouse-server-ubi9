@@ -12,6 +12,6 @@
     <listen_host>::</listen_host>
     <listen_host>0.0.0.0</listen_host>
 
-    <!-- Generated in the persistent data directory so read-only root filesystems work. -->
-    <users_config>/var/lib/clickhouse/generated/users.xml</users_config>
+    <!-- Generated on the required /tmp mount so custom data paths remain consistent. -->
+    <users_config>/tmp/clickhouse-entrypoint/users.xml</users_config>
 </clickhouse>

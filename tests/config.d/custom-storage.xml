@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<clickhouse>
+    <path>/var/lib/clickhouse/custom/</path>
+    <tmp_path>custom-tmp/</tmp_path>
+    <user_files_path>/var/lib/clickhouse/custom-user-files/</user_files_path>
+    <format_schema_path>/var/lib/clickhouse/custom-format-schemas/</format_schema_path>
+    <logger>
+        <log>/var/lib/clickhouse/custom-logs/server.log</log>
+        <errorlog>/var/lib/clickhouse/custom-logs/error.log</errorlog>
+    </logger>
+    <storage_configuration>
+        <disks>
+            <additional>
+                <path>/var/lib/clickhouse/additional/</path>
+            </additional>
+        </disks>
+    </storage_configuration>
+</clickhouse>

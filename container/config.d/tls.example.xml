@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<clickhouse>
+    <https_port>8443</https_port>
+    <tcp_port_secure>9440</tcp_port_secure>
+
+    <!-- Publish only TLS ports in production. -->
+    <http_port remove="remove"/>
+    <tcp_port remove="remove"/>
+
+    <openSSL>
+        <server>
+            <certificateFile>/etc/clickhouse-server/certs/tls.crt</certificateFile>
+            <privateKeyFile>/etc/clickhouse-server/certs/tls.key</privateKeyFile>
+            <verificationMode>none</verificationMode>
+            <loadDefaultCAFile>true</loadDefaultCAFile>
+            <cacheSessions>true</cacheSessions>
+            <disableProtocols>sslv2,sslv3,tlsv1,tlsv1_1</disableProtocols>
+            <preferServerCiphers>true</preferServerCiphers>
+        </server>
+    </openSSL>
+</clickhouse>
