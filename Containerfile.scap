@@ -35,6 +35,7 @@ RUN microdnf install -y \
     && rm -rf /var/cache/yum /var/log/dnf* /var/log/yum.*
 
 COPY --chmod=0755 scripts/scap-container.sh /usr/local/bin/scap-container
+COPY --chown=0:0 --chmod=0444 security/scap/datopsis-ubi9-micro-tailoring.xml /opt/scap/datopsis-ubi9-micro-tailoring.xml
 
 LABEL org.opencontainers.image.title="Datopsis OpenSCAP offline scanner" \
       org.opencontainers.image.description="Pinned, isolated CI scanner for clickhouse-server-ubi9 exported filesystems" \

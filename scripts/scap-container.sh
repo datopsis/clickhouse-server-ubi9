@@ -5,7 +5,8 @@ readonly input_tar="/input/rootfs.tar"
 readonly scan_root="/scan-root"
 readonly results_dir="/results"
 readonly data_stream="/opt/scap/ssg-rhel9-ds.xml"
-readonly profile="xccdf_org.ssgproject.content_profile_stig"
+readonly tailoring_file="/opt/scap/datopsis-ubi9-micro-tailoring.xml"
+readonly profile="xccdf_org.datopsis_profile_ubi9_micro_container"
 
 if [[ ! -r "${input_tar}" ]]; then
     echo "SCAP input is not readable: ${input_tar}" >&2
@@ -26,6 +27,7 @@ fi
 tar --extract --file "${input_tar}" --directory "${scan_root}" --same-owner
 
 sha256sum "${data_stream}" > "${results_dir}/datastream.sha256"
+sha256sum "${tailoring_file}" > "${results_dir}/tailoring.sha256"
 oscap --version > "${results_dir}/openscap-version.txt"
 rpm --query openscap openscap-scanner > "${results_dir}/openscap-packages.txt"
 rpm --query --all --queryformat '%{NAME}-%{EPOCHNUM}:%{VERSION}-%{RELEASE}.%{ARCH}\n' \
@@ -39,6 +41,7 @@ export OSCAP_PROBE_ROOT="${scan_root}"
 set +e
 oscap xccdf eval \
     --profile "${profile}" \
+    --tailoring-file "${tailoring_file}" \
     --results-arf "${results_dir}/results.arf.xml" \
     --results "${results_dir}/results.xccdf.xml" \
     --report "${results_dir}/report.html" \
@@ -50,7 +53,8 @@ printf '%s\n' "${oscap_status}" > "${results_dir}/oscap-exit-code.txt"
 case "${oscap_status}" in
     0 | 2)
         # OpenSCAP uses 2 for a completed evaluation with noncompliant rules.
-        # Findings are report-only during baseline discovery.
+        # Findings remain report-only during the documented stabilization
+        # period. Operational errors always block.
         ;;
     *)
         echo "OpenSCAP evaluation failed with exit code ${oscap_status}" >&2

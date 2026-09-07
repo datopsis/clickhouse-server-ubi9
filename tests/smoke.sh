@@ -147,6 +147,9 @@ if grep -q '^CLICKHOUSE_DATA_DIR=' <<< "${image_environment}"; then
 fi
 test "$("${runtime}" exec "${primary}" id -u)" = 101
 test "$("${runtime}" exec "${primary}" stat -c '%a' /tmp/clickhouse-entrypoint/users.xml)" = 600
+test "$("${runtime}" exec "${primary}" stat -c '%u:%g' /usr/bin)" = 0:0
+test "$("${runtime}" exec "${primary}" stat -c '%u:%g' /usr/bin/clickhouse)" = 0:0
+test "$("${runtime}" exec "${primary}" stat -c '%u:%g' /usr/local/bin/clickhouse-entrypoint)" = 0:0
 "${runtime}" exec "${primary}" test ! -e /var/lib/clickhouse/generated/users.xml
 "${runtime}" exec "${primary}" sh -c \
     '! command -v microdnf && ! command -v dnf && ! command -v yum && ! command -v rpm && ! command -v curl && ! command -v wget'

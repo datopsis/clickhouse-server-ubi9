@@ -150,7 +150,7 @@ jobs:
           cache-from: type=gha,scope=scap-${{ matrix.architecture }}
           cache-to: type=gha,mode=max,scope=scap-${{ matrix.architecture }}
 
-      - name: Run SCAP discovery scan
+      - name: Run tailored SCAP stabilization scan
         id: scan-scap
         if: ${{ steps.build-scap.outcome == 'success' }}
         continue-on-error: true
