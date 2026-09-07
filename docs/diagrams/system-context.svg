@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" role="img" aria-labelledby="title desc">
+  <title id="title">ClickHouse UBI image system context and trust boundaries</title>
+  <desc id="desc">Clients and operators interact with a non-root ClickHouse container. The platform supplies secrets, storage, network policy, and ingress. External services are reached only through controlled egress. Build and deployment repositories have separate responsibilities.</desc>
+  <defs>
+    <style>.bg{fill:#f8fafc}.zone{fill:#fff;stroke:#334155;stroke-width:2}.image{fill:#e0f2fe;stroke:#0369a1;stroke-width:3}.actor{fill:#fef3c7;stroke:#92400e;stroke-width:2}.platform{fill:#ecfccb;stroke:#3f6212;stroke-width:2}.external{fill:#f3e8ff;stroke:#7e22ce;stroke-width:2}.t{font:700 22px system-ui;fill:#0f172a}.h{font:700 17px system-ui;fill:#0f172a}.p{font:14px system-ui;fill:#334155}.a{stroke:#475569;stroke-width:2;fill:none;marker-end:url(#arrow)}.dash{stroke-dasharray:9 7}</style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#475569"/></marker>
+  </defs>
+  <rect class="bg" width="1200" height="700"/><text class="t" x="40" y="45">System context and trust boundaries</text>
+  <rect class="zone" x="250" y="80" width="700" height="500" rx="18"/><text class="h" x="275" y="115">Deployment / platform boundary</text>
+  <rect class="image" x="430" y="205" width="350" height="235" rx="16"/><text class="h" x="470" y="245">ClickHouse UBI 9 container</text><text class="p" x="470" y="280">Non-root UID 101 or arbitrary UID</text><text class="p" x="470" y="310">Read-only root; no capabilities</text><text class="p" x="470" y="340">ClickHouse server + entrypoint</text><text class="p" x="470" y="370">Optional direct TLS configuration</text><text class="p" x="470" y="400">Image-owned userspace controls</text>
+  <rect class="actor" x="30" y="180" width="170" height="100" rx="12"/><text class="h" x="65" y="220">Clients</text><text class="p" x="50" y="250">HTTPS / native TCP</text>
+  <rect class="actor" x="30" y="390" width="170" height="100" rx="12"/><text class="h" x="55" y="430">Operators</text><text class="p" x="50" y="460">Config and lifecycle</text>
+  <rect class="platform" x="300" y="475" width="185" height="75" rx="12"/><text class="h" x="330" y="510">Secrets / PKI</text><text class="p" x="325" y="535">Read-only mounts</text>
+  <rect class="platform" x="510" y="475" width="185" height="75" rx="12"/><text class="h" x="555" y="510">Storage</text><text class="p" x="540" y="535">PVC or volume</text>
+  <rect class="platform" x="720" y="475" width="185" height="75" rx="12"/><text class="h" x="755" y="510">Policy</text><text class="p" x="745" y="535">Ingress / egress</text>
+  <rect class="external" x="1000" y="180" width="170" height="100" rx="12"/><text class="h" x="1028" y="220">Services</text><text class="p" x="1020" y="250">S3, Kafka, HTTPS</text>
+  <rect class="external" x="300" y="620" width="260" height="55" rx="10"/><text class="h" x="320" y="653">Image repository (this repo)</text>
+  <rect class="external" x="640" y="620" width="260" height="55" rx="10"/><text class="h" x="660" y="653">clickhouse-production-stack</text>
+  <path class="a" d="M200 230H430"/><path class="a" d="M200 440H380V390H430"/><path class="a" d="M392 475V440"/><path class="a" d="M602 475V440"/><path class="a" d="M812 475V440"/><path class="a" d="M780 260H1000"/><path class="a dash" d="M430 620V580"/><path class="a dash" d="M770 620V580"/>
+</svg>

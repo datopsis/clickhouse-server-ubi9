@@ -11,7 +11,9 @@ This roadmap is the release gate for the first supported image. A checked item m
 3. Execute [PRODUCTION.md](PRODUCTION.md) on native `amd64`, native `arm64`, and OpenShift, recording resource, storage, backup/restore, shutdown, and recovery evidence.
 4. Complete the ClickHouse/UBI notice and SBOM review described in [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md).
 5. Establish the tailored container SCAP baseline in [SCAP.md](SCAP.md), retain both architecture reports, and review every applicability decision before enforcing selected rules.
-6. Publish the first signed GHCR release only after every blocker below is complete. Reconsider Docker Hub and paid security services after that release has real consumer demand.
+6. Complete the reviewed [security-control engineering and SCTM export](SECURITY-CONTROLS.md), including Database SRG/STIG provenance, control procedures, OSCAL/CSV artifacts, and ownership boundaries.
+7. Resolve the [FIPS](FIPS.md) and [host/runtime support](SUPPORT.md) gates without making unsupported cryptographic or platform claims, and review the [architecture diagrams](ARCHITECTURE.md) against the release candidate.
+8. Publish the first signed GHCR release only after every blocker below is complete. Reconsider Docker Hub and paid security services after that release has real consumer demand.
 
 ### Incremental delivery plan
 
@@ -60,16 +62,16 @@ This repository owns image-specific behavior, basic usage, and minimal platform 
 
 **Automated connected test**
 
-- [ ] Add a test that creates an ephemeral root and intermediate CA, issues a leaf certificate with the exact test DNS SAN, and mounts only the leaf key, chain, and public trust bundle into the container.
-- [ ] Exercise HTTPS and native TLS with clear-text listeners removed. Require success with the correct CA and hostname and failure with an unrelated CA, wrong hostname, clear-text client, unreadable key, and incomplete chain.
-- [ ] Exercise outbound TLS against both a normally trusted Internet endpoint and a controlled private-CA endpoint, proving the correct CA-bundle behavior for each rather than assuming all ClickHouse integrations share one TLS client configuration.
-- [ ] Replace the leaf certificate through the documented rotation procedure, restart or roll out the server, verify the new serial/expiry, and prove the retired certificate is no longer served.
+- [x] Add a test that creates an ephemeral root and intermediate CA, issues a leaf certificate with the exact test DNS SAN, and mounts only the leaf key, chain, and public trust bundle into the container.
+- [x] Exercise HTTPS and native TLS with clear-text listeners removed. Require success with the correct CA and hostname and failure with an unrelated CA, wrong hostname, clear-text client, unreadable key, and incomplete chain.
+- [x] Exercise outbound TLS against both a normally trusted Internet endpoint and a controlled private-CA endpoint, proving the correct CA-bundle behavior for each rather than assuming all ClickHouse integrations share one TLS client configuration.
+- [x] Replace the leaf certificate through the documented rotation procedure, restart or roll out the server, verify the new serial/expiry, and prove the retired certificate is no longer served.
 
 **Disconnected rehearsal**
 
-- [ ] Add `docs/TLS-REHEARSAL.md` with connected preparation, artifact inventory, SHA-256 recording, controlled transfer, internal image import, internal DNS, offline CSR signing, Secret/read-only mount creation, network isolation, validation, rotation, rollback, and cleanup procedures.
-- [ ] Preload every required image and tool, then perform the server/client phase on a network with external egress denied. Generate the server private key inside the disconnected boundary and never transfer a CA private key into the workload.
-- [ ] Test inbound HTTPS/native TLS, outbound trust to an internal HTTPS endpoint, wrong-CA and wrong-hostname rejection, renewal, restart, and rollback without public DNS, ACME, OCSP, CRL, or package downloads unless an approved internal mirror is part of the design.
+- [x] Add `docs/TLS-REHEARSAL.md` with connected preparation, artifact inventory, SHA-256 recording, controlled transfer, internal image import, internal DNS, offline CSR signing, Secret/read-only mount creation, network isolation, validation, rotation, rollback, and cleanup procedures.
+- [x] Automate the isolated server/client phase on an internal network with external egress denied, private-CA service trust, renewal, and rollback on native AMD64 and ARM64.
+- [ ] Execute the operator rehearsal inside a representative disconnected security boundary. Preload required images/tools, generate the server key inside the boundary, transfer no CA private key, and operate without public DNS, ACME, OCSP, CRL, or package downloads unless an approved internal mirror is part of the design.
 
 **Exit evidence**
 
@@ -117,7 +119,41 @@ This repository owns image-specific behavior, basic usage, and minimal platform 
 - [ ] Retain the discovery report, final tailoring, rule-rationale/exclusion review, three stable two-architecture runs, capability inspection, and `oscap-chroot` versus `oscap-podman` comparison.
 - [ ] State precisely that the result covers selected image-filesystem controls and is not CIS/STIG certification of the host, OpenShift cluster, or production deployment.
 
-#### 6. Final candidate and signed release
+#### 6. Security-control provenance, STIG analysis, and SCTM export
+
+**Source acquisition and analysis**
+
+- [ ] Follow [SECURITY-CONTROLS.md](SECURITY-CONTROLS.md). Pin and hash the current DISA Database SRG, Container Platform SRG, RHEL 9 STIG, and selected active database-product STIGs. Record title, version/release, date, URL, retrieval date, SHA-256, and sunset status in `security/stig-sources.yaml`.
+- [ ] Analyze every Database SRG requirement against ClickHouse. Compare active MongoDB, PostgreSQL-distribution, Oracle Database, Oracle MySQL, Microsoft SQL Server, and any other reviewed DISA database STIGs without transferring product-specific commands or treating consensus as applicability.
+- [ ] Create `security/stig-analysis.csv` with source IDs, CCI/NIST mappings, objective, threat, applicability, ownership, implementation feasibility, conflicts, residual risk, rationale, and review metadata. Explicitly record that zero product-STIG controls were inherited before this analysis.
+- [ ] Require two-person review for every `adopt`, `not-applicable`, `unsupported`, and host/platform exclusion. Open an issue for unresolved or ClickHouse-unsupported requirements; do not silently omit them.
+
+**Implementation and user choice**
+
+- [ ] Classify adopted items as immutable image invariants, configurable ClickHouse controls, deployment controls, or organizational/inherited controls. Implement only the first two in this repository; place reusable deployment controls in `clickhouse-production-stack`.
+- [ ] For each safely configurable control, provide reviewed secure and compatibility configuration fragments with exact enable/disable steps, default, restart requirement, prerequisites, operational impact, loss of protection, and verification. Do not provide an off switch for trust-boundary invariants merely for convenience.
+- [ ] Add negative tests that prove disabled or weakened profiles are accurately reported as not implementing the associated control. Prevent entrypoint environment variables from silently overriding mounted control configuration.
+
+**SCTM-consumable artifacts and assessment**
+
+- [ ] Publish a schema-valid NIST OSCAL Component Definition as the canonical component artifact and deterministically generate `security/control-matrix.csv` for tabular SCTM import. Include NIST control/statement, CCI/STIG provenance, implementation status, responsibility, configuration, procedure, evidence, residual risk, and expiry.
+- [ ] Add `docs/CONTROL-IMPLEMENTATION.md` with per-control justification and complete examine/test/interview procedures based on NIST SP 800-53A. Every claim must identify the exact image digest, configuration profile, architecture, and evidence sensitivity.
+- [ ] Pin the OSCAL schema/toolchain, validate identifiers and links in CI, and fail on generated-artifact drift. Obtain cyber/ISSO review that the export is a component input, not a completed system SCTM, SSP, authorization, or STIG certification.
+
+**Exit evidence**
+
+- [ ] Retain the source register, complete comparison, review record, OSCAL validation, deterministic CSV check, control tests on AMD64/ARM64, and a trial import performed by the consuming cyber team.
+
+#### 7. Cryptographic boundary, host support, and architecture review
+
+- [ ] Adopt the current determination in [FIPS.md](FIPS.md): the upstream static ClickHouse artifact is not claimed as FIPS 140-3 validated. Record binary linkage, embedded cryptographic implementation/version, and absence or applicability of a CMVP certificate for every release.
+- [ ] Decide whether v1 excludes FIPS-required deployments or introduces a separately built and qualified artifact that exclusively uses an identified validated module in its approved mode and operational environment. Require specialist/assessor review before any FIPS wording.
+- [ ] Test permitted TLS versions and cipher/profile behavior on AMD64 and ARM64. Keep TLS 1.0/1.1 outside supported profiles, test TLS 1.2/1.3 and client compatibility, and never equate protocol negotiation with FIPS validation.
+- [ ] Qualify the exact [host/runtime support](SUPPORT.md) baseline: supported RHEL 9 minor, kernel, Podman client/server, OCI runtime, SELinux mode, cgroup version, and native architectures. Qualify an exact OpenShift 4 release separately. Label RHEL 8/10 and other OCI platforms as unqualified until their full suite passes.
+- [ ] Review every SVG in [ARCHITECTURE.md](ARCHITECTURE.md) against the release configuration and threat model. Add deployment-specific diagrams to `clickhouse-production-stack`; record ports, identities, secrets, trust anchors, storage, ingress/egress, logging, health, and control inheritance.
+- [ ] Add CI validation for SVG/XML well-formedness, internal links, accessible title/description elements, prohibited scripts/external resources, and documented diagram-to-configuration consistency checks.
+
+#### 8. Final candidate and signed release
 
 - [ ] Refresh and review the UBI Minimal and Micro manifest-list digests together. Confirm both architectures resolve, rebuild from scratch, and retain the old/new digest and vulnerability comparison.
 - [ ] Confirm the selected ClickHouse release/channel and archive checksums, run both native CI jobs, and complete the current unfixed-finding triage with owner, rationale, compensating controls, and review expiry.

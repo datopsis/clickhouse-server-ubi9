@@ -79,6 +79,11 @@ Mount configuration fragments under:
 - `/etc/clickhouse-server/config.d/*.xml`
 - `/etc/clickhouse-server/users.d/*.xml`
 
+TLS is optional. The default profile exposes clear-text HTTP/native listeners;
+the documented secure profile enables HTTPS/native TLS on `8443`/`9440` and
+removes `8123`/`9000`. Select the mode with mounted ClickHouse configuration,
+not an environment variable. See [TLS certificates and trust](docs/TLS.md).
+
 Place first-start initialization files in `/docker-entrypoint-initdb.d`. Executable and sourced `.sh`, `.sql`, and `.sql.gz` files are supported and processed in lexical order.
 
 The effective ClickHouse `<path>` setting controls persistent data and defaults to `/var/lib/clickhouse`. The entrypoint discovers configured primary and additional local paths, creates permitted subdirectories as the current identity, and fails with UID/GID guidance when storage is not writable. It never starts as root or changes volume ownership. See [rootless storage and permissions](docs/ROOTLESS.md) before using bind mounts, arbitrary UIDs, custom paths, or additional disks.
@@ -141,7 +146,7 @@ Treat the effective ClickHouse data path (default `/var/lib/clickhouse`) as dura
 
 Before a production rollout, follow the [production deployment guide](docs/PRODUCTION.md). Configure inbound encryption and public/private outbound trust with the [TLS guide](docs/TLS.md), then execute the [CA-issued TLS rehearsal](docs/TLS-REHEARSAL.md). The secure ClickHouse ports (`8443`, `9440`, and `9010`) are configuration choices and are not enabled by default.
 
-See [SECURITY.md](SECURITY.md) for vulnerability reporting and the support policy. Contributor references include [Podman compatibility](docs/PODMAN.md), [rootless storage and permissions](docs/ROOTLESS.md), [qualification evidence](docs/QUALIFICATION.md), the [vulnerability-management process](docs/VULNERABILITY-MANAGEMENT.md), [official-image comparison](docs/IMAGE-COMPARISON.md), [versioning and release standard](docs/VERSION.md), [first-release roadmap](docs/ROADMAP.md), [CI and security process](docs/CI.md), [SCAP compliance scanning](docs/SCAP.md), [Endor Labs posture](docs/ENDOR.md), [badge policy](docs/BADGING.md), and [OpenSSF Scorecard controls](docs/OPENSSF_SCORECARD.md).
+See [SECURITY.md](SECURITY.md) for vulnerability reporting and [first-release support boundaries](docs/SUPPORT.md) for qualified platforms and versions. Contributor references include [architecture diagrams](docs/ARCHITECTURE.md), [security-control and SCTM export](docs/SECURITY-CONTROLS.md), [FIPS determination](docs/FIPS.md), [Podman compatibility](docs/PODMAN.md), [rootless storage and permissions](docs/ROOTLESS.md), [qualification evidence](docs/QUALIFICATION.md), the [vulnerability-management process](docs/VULNERABILITY-MANAGEMENT.md), [official-image comparison](docs/IMAGE-COMPARISON.md), [versioning and release standard](docs/VERSION.md), [first-release roadmap](docs/ROADMAP.md), [CI and security process](docs/CI.md), [SCAP compliance scanning](docs/SCAP.md), [Endor Labs posture](docs/ENDOR.md), [badge policy](docs/BADGING.md), and [OpenSSF Scorecard controls](docs/OPENSSF_SCORECARD.md).
 
 ## License
 
