@@ -38,7 +38,9 @@ not its mutable tag.
 
 `Containerfile.scap` and the scanner scripts are CI tooling only. They do not
 add OpenSCAP, Python, `unzip`, a package manager, or any scanner content to the
-released ClickHouse image.
+released ClickHouse image. The scanner image defaults to unprivileged UID/GID
+65534; only the reviewed wrapper overrides it to namespaced UID 0 while adding
+the explicitly bounded mounts, capabilities, network isolation, and limits.
 
 ## CI security architecture
 
