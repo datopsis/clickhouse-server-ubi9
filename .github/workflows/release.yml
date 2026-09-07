@@ -5,10 +5,7 @@ on:
     tags:
       - "v*"
 
-permissions:
-  contents: read
-  id-token: write
-  packages: write
+permissions: read-all
 
 env:
   IMAGE: ghcr.io/datopsis/clickhouse-server-ubi9
@@ -16,6 +13,10 @@ env:
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      packages: write
     steps:
       - name: Check out repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -74,4 +75,17 @@ jobs:
       - name: Sign image with GitHub OIDC
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
-        run: cosign sign --yes "${IMAGE}@${DIGEST}"
+        run: cosign sign --yes --bundle image.sigstore.json "${IMAGE}@${DIGEST}"
+
+      - name: Download image attestations
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: cosign download attestation "${IMAGE}@${DIGEST}" > image.intoto.jsonl
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >-
+          gh release create "${GITHUB_REF_NAME}" --verify-tag
+          --title "${GITHUB_REF_NAME}" --generate-notes
+          image.sigstore.json image.intoto.jsonl

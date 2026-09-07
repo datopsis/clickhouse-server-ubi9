@@ -1,5 +1,7 @@
 # ClickHouse Server on Red Hat UBI 9
 
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/datopsis/clickhouse-server-ubi9/badge)](https://securityscorecards.dev/viewer/?uri=github.com/datopsis/clickhouse-server-ubi9)
+
 A minimal, security-oriented ClickHouse Server container image built on Red Hat Universal Base Image 9 Micro.
 
 This is an independent Datopsis packaging project. It is not an official ClickHouse image and is not affiliated with or endorsed by ClickHouse, Inc. ClickHouse is a trademark of ClickHouse, Inc.
@@ -108,7 +110,7 @@ The smoke suite verifies startup with a read-only root filesystem and no capabil
 1. Update and locally test the versions and digests in `Containerfile`.
 2. Merge the change to `main` after CI passes.
 3. Create a tag such as `v26.8.2.7-ubi9.8-1`.
-4. Push the tag. GitHub Actions builds both architectures, scans the image, publishes it to GHCR, attaches SBOM and provenance attestations, and signs the resulting digest.
+4. Push the tag. GitHub Actions builds both architectures, scans the image, publishes it to GHCR, attaches SBOM and provenance attestations, signs the resulting digest, and creates a GitHub release containing Sigstore and provenance bundles.
 
 Verify a release with GitHub as the keyless identity provider:
 
@@ -125,7 +127,7 @@ ClickHouse commonly benefits from `nofile=262144:262144`. Optional capabilities 
 
 Treat `/var/lib/clickhouse` as durable state, back it up according to your ClickHouse topology, and pin production deployments to an image digest rather than a mutable tag.
 
-See [SECURITY.md](SECURITY.md) for vulnerability reporting and the support policy.
+See [SECURITY.md](SECURITY.md) for vulnerability reporting and the support policy. The repository's Scorecard controls and maintainer process are documented in [docs/OPENSSF_SCORECARD.md](docs/OPENSSF_SCORECARD.md).
 
 ## License
 
