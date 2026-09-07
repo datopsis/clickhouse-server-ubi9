@@ -1,0 +1,28 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", "docker:pinDigests"],
+  "dependencyDashboard": true,
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/(^|/)Containerfile$/"],
+      "matchStrings": [
+        "ARG CLICKHOUSE_VERSION=\\\"(?<currentValue>[^\\\"]+)\\\""
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "ClickHouse/ClickHouse",
+      "extractVersionTemplate": "^v(?<version>.*)-stable$",
+      "versioningTemplate": "loose"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchDatasources": ["docker"],
+      "matchPackageNames": [
+        "registry.access.redhat.com/ubi9/ubi-minimal",
+        "registry.access.redhat.com/ubi9/ubi-micro"
+      ],
+      "groupName": "Red Hat UBI 9 base images"
+    }
+  ]
+}

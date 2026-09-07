@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "23 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Lint shell scripts
+        uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          scandir: .
+
+      - name: Lint Containerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Containerfile
+          failure-threshold: warning
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build test image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Containerfile
+          load: true
+          push: false
+          tags: ghcr.io/datopsis/clickhouse-server-ubi9:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run smoke tests
+        env:
+          IMAGE: ghcr.io/datopsis/clickhouse-server-ubi9:test
+        run: bash tests/smoke.sh
+
+      - name: Scan image
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: ghcr.io/datopsis/clickhouse-server-ubi9:test
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH

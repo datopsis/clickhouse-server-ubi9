@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<clickhouse>
+    <logger>
+        <level>information</level>
+        <console>true</console>
+        <log remove="remove"/>
+        <errorlog remove="remove"/>
+    </logger>
+
+    <!-- Continue cleanly when the host has IPv6 disabled. -->
+    <listen_try>1</listen_try>
+    <listen_host>::</listen_host>
+    <listen_host>0.0.0.0</listen_host>
+
+    <!-- Generated in the persistent data directory so read-only root filesystems work. -->
+    <users_config>/var/lib/clickhouse/generated/users.xml</users_config>
+</clickhouse>

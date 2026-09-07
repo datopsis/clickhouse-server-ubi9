@@ -1,0 +1,8 @@
+.git
+.github
+.idea
+.vscode
+docs
+tests
+*.md
+LICENSE
