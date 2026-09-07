@@ -18,7 +18,8 @@ The automated test proves:
 
 - the server receives only its leaf key and leaf-plus-intermediate chain;
 - HTTPS accepts the issuing CA and exact DNS name; native TLS accepts the CA and protocol query, while OpenSSL independently verifies the listener certificate's DNS name;
-- unrelated CAs, wrong hostnames, clear-text clients, an incomplete chain, and an unreadable leaf key fail;
+- unrelated CAs, wrong hostnames, clear-text clients, and an incomplete chain fail;
+- an unreadable leaf key produces a permission error and leaves both secure listeners unavailable, even if the ClickHouse process remains alive;
 - a connected CA bundle supports both public PKI and a controlled private-CA ClickHouse endpoint;
 - an internal Podman/Docker network is marked `internal`, can reach its controlled private-CA endpoint through ClickHouse, and cannot open a public-IP TCP connection;
 - connected and disconnected certificate renewal changes the served serial;
@@ -172,7 +173,7 @@ Retain sanitized output. Then require failures for:
 - HTTP sent to the HTTPS port;
 - non-secure native protocol sent to `9440`;
 - a chain containing only the leaf;
-- a key unreadable by the assigned container identity.
+- a key unreadable by the assigned container identity; treat logged key-load errors or unavailable secure listeners as a failed deployment even if the ClickHouse process remains alive.
 
 Do not use an insecure client flag to make any negative test pass.
 

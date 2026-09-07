@@ -303,6 +303,23 @@ verify_native_hostname() {
         -verify_return_error </dev/null >/dev/null 2>&1
 }
 
+wait_for_log() {
+    local name=$1
+    local expected=$2
+    local logs
+
+    for _ in {1..30}; do
+        logs="$(runtime_call logs "${name}" 2>&1 || true)"
+        if grep -Fq "${expected}" <<< "${logs}"; then
+            return
+        fi
+        sleep 1
+    done
+
+    runtime_call logs "${name}" || true
+    fail "${name} did not log the expected TLS key error"
+}
+
 query_local() {
     local name=$1
     local query=$2
@@ -454,27 +471,32 @@ fi
 runtime_call rm -f "${incomplete_server}" >/dev/null
 echo 'Incomplete-chain rejection passed'
 
-# An unreadable private key must prevent startup. Windows Podman Machine file
-# sharing does not preserve a host chmod 000, so native Linux CI owns this
-# assertion and the Windows reproduction reports the explicit limitation.
+# ClickHouse can keep its process alive after failing to load an unreadable key,
+# but it must report the permission failure and leave both secure listeners
+# unavailable. Windows Podman Machine file sharing does not preserve a host
+# chmod 000, so native Linux CI owns this assertion.
 if command -v cygpath >/dev/null 2>&1; then
     echo 'Unreadable-key rejection skipped on Windows; native Linux CI runs it'
 else
     cp "${secret_dir}/connected-v1.key" "${secret_dir}/unreadable.key"
     chmod 000 "${secret_dir}/unreadable.key"
-    if run_tls_server "${unreadable_server}" "${connected_network}" \
+    if ! run_tls_server "${unreadable_server}" "${connected_network}" \
         unreadable.connected.test "${unreadable_volume}" \
         "${secret_dir}/connected-v1.chain.crt" \
         "${secret_dir}/unreadable.key"; then
-        for _ in {1..30}; do
-            if [[ "$(runtime_call inspect --format '{{.State.Running}}' \
-                "${unreadable_server}")" == false ]]; then
-                break
+        fail 'container runtime rejected the unreadable-key fixture unexpectedly'
+    fi
+    wait_for_log "${unreadable_server}" 'Error loading private key'
+    wait_for_log "${unreadable_server}" 'Permission denied'
+    if [[ "$(runtime_call inspect --format '{{.State.Running}}' \
+        "${unreadable_server}")" == true ]]; then
+        for secure_port in 8443 9440; do
+            if runtime_call exec "${unreadable_server}" timeout 2 bash -c \
+                "exec 3<>/dev/tcp/127.0.0.1/${secure_port}" \
+                >/dev/null 2>&1; then
+                fail "unreadable key left secure port ${secure_port} available"
             fi
-            sleep 1
         done
-        test "$(runtime_call inspect --format '{{.State.Running}}' \
-            "${unreadable_server}")" = false
     fi
     chmod 0400 "${secret_dir}/unreadable.key"
     echo 'Unreadable-key rejection passed'

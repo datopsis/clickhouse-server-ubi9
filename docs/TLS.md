@@ -93,6 +93,12 @@ podman unshare chown 101:0 tls.key
 
 The key may display subordinate host IDs afterward; `podman unshare ls -l tls.key` shows its container-visible ownership. For rootful Podman, use `sudo chown 101:0 tls.key` instead. Do not make the private key world-readable to bypass a mapping problem.
 
+An unreadable key does not necessarily terminate the ClickHouse process. It can
+leave the process running while HTTPS and secure native listeners are absent.
+Readiness must therefore test a required TLS listener, and operators must alert
+on certificate/key loading errors instead of treating process liveness as proof
+that TLS is available.
+
 Run the image with separate read-only mounts. Add `:Z` to bind mounts on SELinux hosts:
 
 ```console
