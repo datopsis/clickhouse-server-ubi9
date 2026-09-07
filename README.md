@@ -21,12 +21,18 @@ This is an independent Datopsis packaging project. It is not an official ClickHo
 - Compatible with a read-only root filesystem
 - Requires no Linux capabilities for its baseline configuration
 - Restricts the default user to localhost unless a password is supplied
-- CI smoke tests, repository linting, workflow auditing, and blocking Trivy and Grype scans for fixed high and critical vulnerabilities
+- Native AMD64 and ARM64 CI smoke tests, repository linting, workflow auditing, and blocking Trivy and Grype scans for fixed high and critical vulnerabilities
 - Syft-generated SPDX JSON inventories retained for CI builds and attached to releases
 - Multi-architecture release images for `linux/amd64` and `linux/arm64`
 - Keyless Cosign signatures, SBOM attestations, and build provenance on tagged releases
 
 The builder uses UBI Minimal and is discarded. Only UBI Micro, a small set of UBI runtime packages, ClickHouse, and the entrypoint are present in the published image.
+
+## Project scope
+
+This repository owns the container artifact and its contract: build inputs, entrypoint behavior, ports, environment variables, configuration/mount conventions, rootless operation, basic Docker/Podman examples, image security evidence, and minimal platform-qualification fixtures.
+
+Reusable production deployment topology belongs in the planned [clickhouse-production-stack](https://github.com/datopsis/clickhouse-production-stack) repository. That project should own deployable Compose/Kubernetes/OpenShift resources, clustering, ingress and network policy, secret integration, monitoring, backups, restore automation, and environment-specific sizing. Examples here remain intentionally small and exist to explain or test behavior specific to this image.
 
 ## Quick start
 

@@ -70,6 +70,17 @@ jobs:
           provenance: mode=max
           sbom: true
 
+      - name: Verify published manifest architectures
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -Eeuo pipefail
+          docker buildx imagetools inspect --raw "${IMAGE}@${DIGEST}" |
+            jq -e '
+              ([.manifests[].platform | select(.os == "linux" and .architecture == "amd64")] | length >= 1)
+              and ([.manifests[].platform | select(.os == "linux" and .architecture == "arm64")] | length >= 1)
+            '
+
       - name: Scan published image
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:

@@ -16,6 +16,8 @@ This roadmap is the release gate for the first supported image. A checked item m
 
 Complete these work packages in order. Each package should normally be a separate pull request and commit so its behavior, documentation, and evidence can be reviewed before the next package changes the same release surface. Do not check a package merely because its implementation exists; retain the listed exit evidence.
 
+This repository owns image-specific behavior, basic usage, and minimal platform qualification. Production-ready deployment compositions, cluster topology, operational automation, and environment overlays belong in the separate `clickhouse-production-stack` repository. Qualification fixtures here should be directly reusable there where practical, but must not grow into a second deployment stack.
+
 #### 1. Rootless storage and configuration contract
 
 **Implementation**
@@ -42,15 +44,15 @@ Complete these work packages in order. Each package should normally be a separat
 
 **Implementation**
 
-- [ ] Change the image job to an explicit native matrix: `ubuntu-24.04` with `linux/amd64` and `ubuntu-24.04-arm` with `linux/arm64`. Build and load one native image per job; do not use QEMU as native-runtime evidence.
-- [ ] Run the complete smoke suite, Trivy image gate, augmented SPDX generation, blocking Grype gate, and full Grype inventory on each architecture.
-- [ ] Give image tags, artifacts, SARIF categories, and cache scopes architecture-specific names so parallel jobs cannot overwrite or conflate evidence.
-- [ ] Keep the release workflow's multi-platform manifest build, then inspect the manifest and prove that it contains the tested `linux/amd64` and `linux/arm64` variants.
-- [ ] Update the protected required checks so both native jobs must pass before merge.
+- [x] Change the image job to an explicit native matrix: `ubuntu-24.04` with `linux/amd64` and `ubuntu-24.04-arm` with `linux/arm64`. Build and load one native image per job; do not use QEMU as native-runtime evidence.
+- [x] Run the complete smoke suite, Trivy image gate, augmented SPDX generation, blocking Grype gate, and full Grype inventory on each architecture.
+- [x] Give image tags, artifacts, SARIF categories, and cache scopes architecture-specific names so parallel jobs cannot overwrite or conflate evidence.
+- [x] Keep the release workflow's multi-platform manifest build, then inspect the manifest and prove that it contains the tested `linux/amd64` and `linux/arm64` variants.
+- [x] Preserve the protected `image` check as an aggregate job that fails unless both native matrix jobs pass before merge.
 
 **User documentation and exit evidence**
 
-- [ ] Update `docs/CI.md` with runner labels, native-versus-emulated boundaries, artifact names, expected architecture checks, and local reproduction commands.
+- [x] Update `docs/CI.md` with runner labels, native-versus-emulated boundaries, artifact names, expected architecture checks, and local reproduction commands.
 - [ ] Retain successful workflow URLs and per-architecture image version, package count, SBOM, vulnerability results, and smoke logs. Record runner architecture from `uname -m` rather than inferring it only from a workflow label.
 
 #### 3. CA-issued connected and disconnected TLS rehearsal
@@ -77,7 +79,7 @@ Complete these work packages in order. Each package should normally be a separat
 **Procedure documentation**
 
 - [ ] Add `docs/OPENSHIFT-TESTING.md` with step-by-step instructions for obtaining a Red Hat Developer Sandbox or using OpenShift Local, installing/logging in with `oc`, selecting a project, verifying quotas, and cleaning up all test resources.
-- [ ] Provide reviewed example resources for a digest-pinned image, password Secret, TLS Secret, configuration ConfigMap, RWO PVC, Service, and HTTPS Route where applicable. Keep native TCP behind a suitable Service or TCP-capable ingress rather than implying an HTTP Route supports it.
+- [ ] Provide minimal qualification resources for a digest-pinned image, password Secret, TLS Secret, configuration ConfigMap, RWO PVC, Service, and HTTPS Route where applicable. Keep native TCP behind a suitable Service or TCP-capable ingress rather than implying an HTTP Route supports it. Production overlays, topology, and automation belong in `clickhouse-production-stack`.
 - [ ] Document GHCR public access and private `imagePullSecret` alternatives, restricted SCC expectations, arbitrary UID/group behavior, `runAsNonRoot`, read-only root filesystem, runtime-default seccomp, dropped capabilities, bounded `/tmp`, resource requests/limits, probes, and termination grace periods.
 - [ ] Include exact commands for inspecting assigned UID/GID, SCC admission, mounts, permissions, events, logs, health, TLS, PVC binding, and image digest. Explain common `permission denied`, `CrashLoopBackOff`, route, and certificate failures from an operator's perspective.
 

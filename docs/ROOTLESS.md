@@ -4,6 +4,47 @@ The image starts ClickHouse directly as UID `101`, group `0`, and does not conta
 
 This model prevents startup scripts from recursively changing production data ownership and works naturally with restricted security policies. It also means the operator must provision storage correctly before starting the server. The entrypoint reports the first required path it cannot create or write together with its effective UID and GID.
 
+## Official-image compatibility and the removed variable
+
+`CLICKHOUSE_DATA_DIR` was an unreleased interface from this Datopsis image; it is not an environment variable provided by the official ClickHouse image. Removing it makes the two images more consistent: both now read the primary data location from the effective ClickHouse `<path>` configuration, whose upstream default is `/var/lib/clickhouse/`.
+
+The important difference is directory ownership. The official image normally starts its entrypoint as root, discovers configured paths, creates or changes their ownership, and then launches ClickHouse as its runtime user. This image starts non-root, discovers the same classes of local path, creates permitted subdirectories, and fails with preparation instructions when the mount itself is not writable. It never repairs ownership.
+
+The equivalent of choosing a data location for a particular `docker run` is to mount a ClickHouse configuration fragment and the corresponding volume in that command. Create `storage.xml` in the current directory:
+
+```xml
+<?xml version="1.0"?>
+<clickhouse>
+    <path>/data/clickhouse/</path>
+</clickhouse>
+```
+
+Prepare the host directory for the image's UID and group, then start the container:
+
+```console
+sudo install -d -m 0770 -o 101 -g 0 /srv/clickhouse/data
+docker run --detach --name clickhouse \
+  --env CLICKHOUSE_PASSWORD='replace-me' \
+  --read-only --tmpfs /tmp:size=256m,mode=1777 \
+  --cap-drop ALL --security-opt no-new-privileges \
+  --volume ./storage.xml:/etc/clickhouse-server/config.d/storage.xml:ro \
+  --volume /srv/clickhouse/data:/data/clickhouse \
+  ghcr.io/datopsis/clickhouse-server-ubi9@sha256:<digest>
+```
+
+This remains runtime-selectable container configuration: no derived image is required. The difference is that the value is expressed in ClickHouse XML rather than an environment variable, preventing the entrypoint and server from using conflicting locations. Deployment automation may render the XML or ConfigMap before creating the container, but the resulting `<path>` and mounted volume must agree.
+
+This short example moves only the primary data path. The [complete custom-path procedure](#custom-primary-data-path) also relocates temporary data, user files, and format schemas. Additional ClickHouse disks require one configured `<path>`, one writable mount, and the same host-side permission preparation per disk; see [Additional local disks](#additional-local-disks).
+
+| Behavior | Official image | Datopsis UBI image |
+| --- | --- | --- |
+| Default path | `/var/lib/clickhouse/` | `/var/lib/clickhouse/` |
+| Custom path source | Effective ClickHouse configuration | Effective ClickHouse configuration |
+| Environment variable named `CLICKHOUSE_DATA_DIR` | No | No |
+| Default entrypoint identity | Root, then drops privileges | Non-root throughout |
+| Can recursively repair volume ownership | Yes, in its root startup mode | No |
+| Custom path can be selected without rebuilding | Yes, with mounted configuration | Yes, with mounted configuration |
+
 ## Default named volume
 
 The image declares `/var/lib/clickhouse` and creates it as `101:0` with group permissions matching the owner. A new Docker or Podman named volume therefore works without an ownership-changing startup step:

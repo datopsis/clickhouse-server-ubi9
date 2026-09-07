@@ -9,7 +9,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# shellcheck source=../container/entrypoint.sh
+# shellcheck source=container/entrypoint.sh
 source "${repo_root}/container/entrypoint.sh"
 
 # Isolate directory preparation from ClickHouse itself so every supported key,

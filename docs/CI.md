@@ -6,7 +6,7 @@ This repository treats the built image as the primary deliverable. CI therefore 
 
 | Workflow | Triggers | Purpose |
 | --- | --- | --- |
-| `CI` | Pull requests, pushes to `main`, weekly schedule, manual dispatch | Lint, workflow audit, configuration scan, image build, smoke tests, Trivy scan, Syft SBOM, and Grype scan. |
+| `CI` | Pull requests, pushes to `main`, weekly schedule, manual dispatch | Lint and workflow audit, followed by native AMD64 and ARM64 image builds, smoke tests, Trivy scans, Syft SBOMs, and Grype scans. |
 | `CodeQL` | Workflow changes, weekly schedule, manual dispatch | Static analysis of GitHub Actions with the security-extended query suite. |
 | `OpenSSF Scorecard` | Pushes to `main`, ruleset changes, weekly schedule, manual dispatch | Supply-chain posture analysis, SARIF upload, and public Scorecard publication. |
 | `Release image` | Tags matching `v*` | Tag/input/changelog validation, multi-architecture publish, digest scans, evidence generation, keyless signing, and GitHub release creation. |
@@ -21,7 +21,7 @@ Workflow-level permissions default to read-only. Write scopes are applied only t
 | Source-specific lint | ShellCheck and Hadolint | Common shell defects and unsafe or wasteful container-build patterns. | These are static rules, not runtime evidence. |
 | Workflow security | Actionlint, Zizmor, and CodeQL `actions` with `security-extended` | Workflow syntax, dangerous expressions, excessive permissions, untrusted checkout/data flows, artifact risks, and immutable references. | CodeQL runs on workflow changes and a schedule; Zizmor runs in every `lint` job. |
 | Build configuration | Trivy configuration scan | High/critical Containerfile and infrastructure misconfigurations. | A clean configuration scan says nothing about packages in the built image. |
-| Runtime behavior | Buildx plus `tests/smoke.sh` | The exact test image starts and stops correctly under production-oriented restrictions and supports documented initialization/authentication behavior. | Hosted-runner tests do not replace native-architecture and OpenShift release qualification. |
+| Runtime behavior | Native GitHub-hosted AMD64 and ARM64 runners, Buildx, and `tests/smoke.sh` | Each architecture's exact test image starts and stops correctly under production-oriented restrictions and supports documented initialization/authentication behavior. Runner and loaded-image assertions prevent emulation or a mislabeled image from being treated as native evidence. | Hosted-runner tests do not replace OpenShift qualification or application-specific performance testing. |
 | Image vulnerabilities | Trivy image scan | No fixed high/critical findings according to Trivy's current databases and vendor severity selection. | `ignore-unfixed` intentionally leaves unfixed risk for human release review. |
 | Independent inventory and scan | Syft plus Grype | SPDX inventory of the tested image and a second vulnerability matcher/database; fixed high/critical findings block. | Overlap is intentional, but scanner agreement is not proof of absence. |
 | Supply-chain posture | OpenSSF Scorecard | Repository and build-pipeline practice signals published independently. | Historical and popularity signals improve only through genuine project operation. |
@@ -31,8 +31,8 @@ No additional general-purpose scanner is currently justified. Dependency Review 
 
 ## Pull request and merge process
 
-1. A pull request starts the two required checks: `lint` and `image`. Workflow-file changes also start CodeQL.
-2. Reviewers inspect the diff, check annotations, scanner summaries, smoke-test version, and the retained SBOM/SARIF. They confirm skipped steps are expected for the event and review warnings or ignored findings.
+1. A pull request starts the two protected checks: `lint` and the aggregate `image` check. The aggregate succeeds only after both `image (amd64)` and `image (arm64)` succeed. Workflow-file changes also start CodeQL.
+2. Reviewers inspect both architecture jobs, the diff, annotations, scanner summaries, smoke-test versions, and the retained architecture-specific SBOM/SARIF artifacts. They confirm skipped steps are expected for the event and review warnings or ignored findings.
 3. The active `main` ruleset requires a pull request, resolved review threads, and the latest `lint` and `image` results before merge; it also blocks deletion and force pushes. Required approving reviews remain deliberately disabled until the post-first-release review described in [ROADMAP.md](ROADMAP.md).
 4. A merge starts `CI` on the exact `main` commit. Workflow changes start CodeQL, and every main push refreshes Scorecard. These post-merge runs are reviewed because merge-commit context, secrets, permissions, and SARIF publication differ from pull requests.
 5. Weekly schedules refresh time-sensitive vulnerability and workflow analysis even when source has not changed. Manual dispatch supports investigation; it is not a substitute for the pull-request checks.
@@ -46,7 +46,7 @@ Repository configuration is part of the security boundary, even though it is not
 
 - Actions are enabled, the default `GITHUB_TOKEN` permission is read-only, and workflows cannot approve pull requests.
 - GitHub requires third-party Actions to be referenced by a full commit SHA. Workflow files also keep the release tag in a comment for review and Dependabot updates.
-- The `Protect main` ruleset requires pull requests, resolved review threads, and successful, up-to-date `lint` and `image` checks; it prevents branch deletion and non-fast-forward updates. The required approval count is intentionally zero for now.
+- The `Protect main` ruleset requires pull requests, resolved review threads, and successful, up-to-date `lint` and aggregate `image` checks; it prevents branch deletion and non-fast-forward updates. The aggregate preserves the stable protected-check name while requiring both native architecture jobs. The required approval count is intentionally zero for now.
 - Secret scanning, push protection, Dependabot security updates, and private vulnerability reporting are enabled.
 - Workflow permissions are narrowed per job; only code-scanning publication, OIDC signing, package publication, and release creation receive write scopes.
 
@@ -57,7 +57,7 @@ Audit these settings before each release and after organization policy changes. 
 For every required run, verify the event and head SHA first. Then review the following evidence:
 
 - `lint`: every hook and the release-tag test ran, Zizmor audited every workflow, and there are no warnings or annotations hidden behind a successful wrapper.
-- `image`: the configuration scan count, ClickHouse version printed by the smoke suite, Trivy target/OS/package count and result count, SBOM package count, and both Grype's blocking fixed-findings result and full finding inventory.
+- `image (amd64)` and `image (arm64)`: the native runner assertion, loaded-image architecture assertion, configuration scan count, ClickHouse version printed by the smoke suite, Trivy target/OS/package count and result count, SBOM package count, and both Grype's blocking fixed-findings result and full finding inventory. The aggregate `image` job is only the merge gate; inspect the two jobs that produced the evidence.
 - `CodeQL` and Scorecard: analysis covered the intended files, SARIF processing completed, and the Security tab has no new open alert. A successful upload is not the same as zero findings.
 - skipped steps: PR SARIF publication is intentionally skipped to avoid permission failures from untrusted forks; it runs on `main`. A skipped build, smoke test, or scanner is not acceptable.
 - warnings: Trivy may use another vendor's severity when Red Hat data is absent. Grype's `only-fixed` option can ignore real but currently unfixable findings. Review both against Red Hat and ClickHouse advisories before a release.
@@ -66,7 +66,7 @@ Record accepted findings in the release pull request with the advisory, affected
 
 ## Image security pipeline
 
-The image job runs these controls in order:
+Each native image matrix job runs these controls in order. AMD64 uses `ubuntu-24.04` and `linux/amd64`; ARM64 uses `ubuntu-24.04-arm` and `linux/arm64`. QEMU is not installed and does not count as native-runtime evidence.
 
 1. **Trivy configuration scan** checks the `Containerfile`, Compose configuration, and repository infrastructure configuration for high and critical misconfigurations.
 2. **Build and smoke tests** exercise startup, authentication, initialization, persistence, shutdown, read-only operation, dropped capabilities, and arbitrary UIDs.
@@ -82,9 +82,9 @@ Trivy and Grype deliberately overlap. They use different databases and matching 
 
 | Artifact | Location | Retention or lifecycle | Purpose |
 | --- | --- | --- | --- |
-| `clickhouse-server-ubi9.spdx.json` | CI artifact `image-security-<commit>` | 14 days | Package inventory for the exact tested image. |
-| `grype.sarif` | Same CI artifact and GitHub code scanning on non-PR runs | 14 days for the downloadable artifact | Machine-readable findings and review evidence. |
-| `grype-all.json` | CI or tag-run security artifact | 14 days for CI; 30 days for a tag run | Complete point-in-time inventory including unfixed Low and Medium matches for human triage. |
+| `clickhouse-server-ubi9-<architecture>.spdx.json` | CI artifact `image-security-<commit>-<architecture>` | 14 days | Package inventory for the exact native AMD64 or ARM64 test image. |
+| `grype-<architecture>.sarif` | Same architecture-specific CI artifact and GitHub code scanning on non-PR runs | 14 days for the downloadable artifact | Machine-readable findings and architecture-specific review evidence. |
+| `grype-all-<architecture>.json` | Architecture-specific CI artifact | 14 days | Complete point-in-time inventory including unfixed Low and Medium matches for human triage. The release workflow separately retains `grype-all.json` for 30 days. |
 | `image.spdx.json` | Tag-run artifact and GitHub release asset | 30-day Actions copy; release asset retained with the release | Downloadable inventory for the published digest. |
 | Release `grype.sarif` | Tag-run artifact and GitHub code scanning | 30 days for the downloadable artifact | Point-in-time scan evidence; not attached to the release because vulnerability data ages rapidly. |
 | BuildKit SBOM/provenance and complete SPDX attestation | OCI registry attestations; downloaded together as `image.intoto.jsonl` | Lifetime of the package/release | Registry-native build evidence plus the keyless, digest-bound copy of `image.spdx.json`. |
@@ -95,28 +95,42 @@ Upload steps use `always()` so useful evidence survives a vulnerability gate fai
 
 ## Reproducing checks locally
 
-Run the same repository checks and build first:
+Run the repository checks and build on a native Linux host. Set the expected values to `amd64`/`x86_64` on an AMD64 host or `arm64`/`aarch64` on an ARM64 host:
 
 ```console
 pre-commit run --all-files --show-diff-on-failure
-docker build --file Containerfile --tag clickhouse-server-ubi9:test .
-IMAGE=clickhouse-server-ubi9:test bash tests/smoke.sh
+ARCHITECTURE=amd64
+MACHINE=x86_64
+test "$(uname -m)" = "${MACHINE}"
+docker build --platform "linux/${ARCHITECTURE}" \
+  --file Containerfile --tag "clickhouse-server-ubi9:test-${ARCHITECTURE}" .
+test "$(docker image inspect --format '{{.Architecture}}' \
+  "clickhouse-server-ubi9:test-${ARCHITECTURE}")" = "${ARCHITECTURE}"
+IMAGE="clickhouse-server-ubi9:test-${ARCHITECTURE}" bash tests/smoke.sh
+```
+
+Running an ARM64 image under emulation on an AMD64 workstation can help diagnose portable build failures, but it does not reproduce the native ARM64 qualification. GitHub's `ubuntu-24.04-arm` runner supplies that evidence. To reproduce both jobs faithfully, run the procedure once on each native architecture and retain separate results.
+
+For the scanner examples below, keep using the architecture-specific image name:
+
+```console
+ARCHITECTURE=amd64
+IMAGE="clickhouse-server-ubi9:test-${ARCHITECTURE}"
 ```
 
 With Trivy, Syft 1.51.1, and Grype 0.118.0 installed from their official release instructions:
 
 ```console
 trivy config --severity HIGH,CRITICAL --exit-code 1 .
-trivy image --ignore-unfixed --severity HIGH,CRITICAL --exit-code 1 \
-  clickhouse-server-ubi9:test
-syft clickhouse-server-ubi9:test --output spdx-json=clickhouse-server-ubi9.spdx.json
+trivy image --ignore-unfixed --severity HIGH,CRITICAL --exit-code 1 "${IMAGE}"
+syft "${IMAGE}" --output "spdx-json=clickhouse-server-ubi9-${ARCHITECTURE}.spdx.json"
 python scripts/augment-spdx.py \
-  --input clickhouse-server-ubi9.spdx.json \
-  --output clickhouse-server-ubi9.spdx.json
-grype sbom:clickhouse-server-ubi9.spdx.json \
+  --input "clickhouse-server-ubi9-${ARCHITECTURE}.spdx.json" \
+  --output "clickhouse-server-ubi9-${ARCHITECTURE}.spdx.json"
+grype "sbom:clickhouse-server-ubi9-${ARCHITECTURE}.spdx.json" \
   --only-fixed --fail-on high --output table
-grype sbom:clickhouse-server-ubi9.spdx.json \
-  --fail-on critical --output json > grype-all.json
+grype "sbom:clickhouse-server-ubi9-${ARCHITECTURE}.spdx.json" \
+  --fail-on critical --output json > "grype-all-${ARCHITECTURE}.json"
 ```
 
 The second local command can return nonzero if a Critical finding exists even though it still writes JSON; inspect the file and the status. Vulnerability databases are time-dependent, so a local result can differ from an earlier workflow. Record the database update time and scanner version when investigating a discrepancy. Do not commit generated SBOM, SARIF, or full-scan JSON files; CI and releases are their authoritative storage locations.
@@ -132,7 +146,7 @@ The second local command can return nonzero if a Critical finding exists even th
 
 ## Release behavior
 
-The release workflow builds and pushes a multi-architecture manifest before scanners run because both architectures must be addressed by the immutable registry digest. If a post-push scan fails, the workflow does not sign or create a GitHub release, but the registry may contain the non-release tag and digest. Maintainers must investigate and remove or clearly quarantine such failed candidates through the GHCR interface.
+The release workflow builds and pushes a multi-architecture manifest before scanners run because both architectures must be addressed by the immutable registry digest. It immediately inspects that digest and fails unless Linux AMD64 and ARM64 descriptors are both present. If manifest validation or a post-push scan fails, the workflow does not sign or create a GitHub release, but the registry may contain the non-release tag and digest. Maintainers must investigate and remove or clearly quarantine such failed candidates through the GHCR interface.
 
 After both scans pass, the workflow publishes the complete SPDX document as a keyless, digest-bound `spdxjson` attestation and signs the digest through GitHub OIDC. It then downloads all attestations and creates a GitHub release containing the SPDX SBOM, Sigstore bundle, and in-toto evidence. Follow the final checklist in [ROADMAP.md](ROADMAP.md) for the first release.
 
@@ -145,5 +159,6 @@ Authoritative references:
 - [Trivy documentation](https://trivy.dev/latest/docs/)
 - [GitHub artifact storage](https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts)
 - [Uploading SARIF to GitHub](https://docs.github.com/en/code-security/code-scanning/integrating-with-code-scanning/uploading-a-sarif-file-to-github)
+- [GitHub-hosted runners, including Arm64 labels](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)
 - [BuildKit attestations](https://docs.docker.com/build/metadata/attestations/)
 - [Cosign container signing](https://docs.sigstore.dev/cosign/signing/signing_with_containers/)
