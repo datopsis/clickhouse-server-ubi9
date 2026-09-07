@@ -1,0 +1,66 @@
+name: Bug report
+description: Report reproducible image, runtime, or documentation behavior
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Do not report vulnerabilities here. Use the private security-reporting link
+        shown before opening an issue.
+  - type: input
+    id: image
+    attributes:
+      label: Image tag and digest
+      description: Include both when available; do not report only `latest`.
+      placeholder: ghcr.io/datopsis/clickhouse-server-ubi9:v...@sha256:...
+    validations:
+      required: true
+  - type: input
+    id: runtime
+    attributes:
+      label: Runtime and version
+      placeholder: Docker 28.x, Podman 5.x, or OpenShift 4.x
+    validations:
+      required: true
+  - type: dropdown
+    id: architecture
+    attributes:
+      label: Architecture
+      options:
+        - linux/amd64
+        - linux/arm64
+        - Other or unknown
+    validations:
+      required: true
+  - type: textarea
+    id: deployment
+    attributes:
+      label: Minimal deployment configuration
+      description: Remove passwords, tokens, internal hostnames, and other secrets.
+      render: yaml
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Reproduction and observed behavior
+      description: List exact steps, the result, and the result you expected.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Redact all secrets and personal or internal information.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues and tested a currently supported image.
+          required: true
+        - label: I removed secrets and sensitive data from this report.
+          required: true
