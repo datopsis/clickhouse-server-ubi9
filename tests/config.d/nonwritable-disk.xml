@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<clickhouse>
+    <storage_configuration>
+        <disks>
+            <nonwritable>
+                <path>/etc/clickhouse-disk/</path>
+            </nonwritable>
+        </disks>
+    </storage_configuration>
+</clickhouse>

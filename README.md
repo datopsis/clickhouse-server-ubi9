@@ -65,7 +65,6 @@ The included `compose.yaml` provides the same hardened local baseline. Change it
 | `CLICKHOUSE_INIT_TIMEOUT` | Seconds to wait for the temporary initialization server | `60` |
 | `CLICKHOUSE_ALWAYS_RUN_INITDB_SCRIPTS` | Run initialization scripts on every start when non-empty | Unset |
 | `CLICKHOUSE_CONFIG` | Main server configuration file | `/etc/clickhouse-server/config.xml` |
-| `CLICKHOUSE_DATA_DIR` | Data and generated-configuration directory | `/var/lib/clickhouse` |
 
 The image intentionally manages only the built-in `default` user through environment variables. Create additional users with SQL or mounted ClickHouse configuration.
 
@@ -76,7 +75,7 @@ Mount configuration fragments under:
 
 Place first-start initialization files in `/docker-entrypoint-initdb.d`. Executable and sourced `.sh`, `.sql`, and `.sql.gz` files are supported and processed in lexical order.
 
-Persistent data belongs at `/var/lib/clickhouse`. The image writes generated user configuration there, allowing the root filesystem to remain read-only.
+The effective ClickHouse `<path>` setting controls persistent data and defaults to `/var/lib/clickhouse`. The entrypoint discovers configured primary and additional local paths, creates permitted subdirectories as the current identity, and fails with UID/GID guidance when storage is not writable. It never starts as root or changes volume ownership. See [rootless storage and permissions](docs/ROOTLESS.md) before using bind mounts, arbitrary UIDs, custom paths, or additional disks.
 
 ## Build and test
 
@@ -138,11 +137,11 @@ cosign verify-attestation --type spdxjson \
 
 ClickHouse commonly benefits from `nofile=262144:262144`. Optional capabilities such as `IPC_LOCK`, `NET_ADMIN`, and `SYS_NICE` enable specific advanced behavior, but are deliberately absent from the baseline.
 
-Treat `/var/lib/clickhouse` as durable state, back it up according to your ClickHouse topology, and pin production deployments to an image digest rather than a mutable tag.
+Treat the effective ClickHouse data path (default `/var/lib/clickhouse`) as durable state, back it up according to your ClickHouse topology, and pin production deployments to an image digest rather than a mutable tag.
 
 Before a production rollout, follow the [production deployment guide](docs/PRODUCTION.md). Configure inbound encryption and public/private outbound trust with the [TLS guide](docs/TLS.md). The secure ClickHouse ports (`8443`, `9440`, and `9010`) are configuration choices and are not enabled by default.
 
-See [SECURITY.md](SECURITY.md) for vulnerability reporting and the support policy. Contributor references include the [vulnerability-management process](docs/VULNERABILITY-MANAGEMENT.md), [official-image comparison](docs/IMAGE-COMPARISON.md), [versioning and release standard](docs/VERSION.md), [first-release roadmap](docs/ROADMAP.md), [CI and security process](docs/CI.md), [Endor Labs posture](docs/ENDOR.md), [badge policy](docs/BADGING.md), and [OpenSSF Scorecard controls](docs/OPENSSF_SCORECARD.md).
+See [SECURITY.md](SECURITY.md) for vulnerability reporting and the support policy. Contributor references include [rootless storage and permissions](docs/ROOTLESS.md), the [vulnerability-management process](docs/VULNERABILITY-MANAGEMENT.md), [official-image comparison](docs/IMAGE-COMPARISON.md), [versioning and release standard](docs/VERSION.md), [first-release roadmap](docs/ROADMAP.md), [CI and security process](docs/CI.md), [Endor Labs posture](docs/ENDOR.md), [badge policy](docs/BADGING.md), and [OpenSSF Scorecard controls](docs/OPENSSF_SCORECARD.md).
 
 ## License
 

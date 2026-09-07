@@ -3,10 +3,89 @@ set -Eeuo pipefail
 shopt -s nullglob
 
 readonly CONFIG_FILE="${CLICKHOUSE_CONFIG:-/etc/clickhouse-server/config.xml}"
-readonly DATA_DIR="${CLICKHOUSE_DATA_DIR:-/var/lib/clickhouse}"
-readonly GENERATED_DIR="${DATA_DIR}/generated"
+readonly GENERATED_DIR="/tmp/clickhouse-entrypoint"
 readonly USERS_FILE="${GENERATED_DIR}/users.xml"
 readonly INIT_DIR="/docker-entrypoint-initdb.d"
+DATA_DIR=""
+
+extract_config_values() {
+    local key=$1
+
+    clickhouse extract-from-config \
+        --config-file "${CONFIG_FILE}" --key "${key}" --try 2>/dev/null || true
+}
+
+normalize_directory() {
+    local path=$1
+
+    if [[ "${path}" == /* ]]; then
+        printf '%s\n' "${path%/}"
+    elif [[ "${path}" == "." ]]; then
+        printf '%s\n' "${DATA_DIR}"
+    else
+        printf '%s\n' "${DATA_DIR}/${path%/}"
+    fi
+}
+
+prepare_directory() {
+    local path=$1
+
+    if ! mkdir -p -- "${path}" || [[ ! -d "${path}" || ! -w "${path}" || ! -x "${path}" ]]; then
+        echo "Required ClickHouse directory is not writable: ${path}" >&2
+        echo "Container identity: uid=$(id -u) gid=$(id -g)" >&2
+        echo "Provision the mount for this identity or an OpenShift-compatible writable group; this image does not start as root or change ownership." >&2
+        exit 1
+    fi
+}
+
+prepare_configured_directories() {
+    local key path log_path
+    local -a values=()
+    local -A prepared=()
+
+    if [[ -n "${CLICKHOUSE_DATA_DIR:-}" ]]; then
+        echo "CLICKHOUSE_DATA_DIR is not supported because ClickHouse storage is controlled by <path> in ${CONFIG_FILE}." >&2
+        echo "Mount a configuration fragment that sets <path> and provision that configured directory instead." >&2
+        exit 1
+    fi
+
+    DATA_DIR="$(extract_config_values path)"
+    DATA_DIR="${DATA_DIR%/}"
+    if [[ -z "${DATA_DIR}" || "${DATA_DIR}" != /* ]]; then
+        echo "ClickHouse <path> must resolve to a non-empty absolute directory in ${CONFIG_FILE}." >&2
+        exit 1
+    fi
+
+    prepare_directory "${DATA_DIR}"
+    prepared["${DATA_DIR}"]=1
+
+    for key in tmp_path user_files_path format_schema_path \
+        'storage_configuration.disks.*.path' \
+        'storage_configuration.disks.*.metadata_path'; do
+        readarray -t values < <(extract_config_values "${key}")
+        for path in "${values[@]}"; do
+            [[ -z "${path}" ]] && continue
+            path="$(normalize_directory "${path}")"
+            if [[ -z "${prepared["${path}"]:-}" ]]; then
+                prepare_directory "${path}"
+                prepared["${path}"]=1
+            fi
+        done
+    done
+
+    for key in logger.log logger.errorlog; do
+        log_path="$(extract_config_values "${key}")"
+        [[ -z "${log_path}" ]] && continue
+        if [[ "${log_path}" == /* && -e "${log_path}" && -w "${log_path}" ]]; then
+            continue
+        fi
+        path="$(normalize_directory "$(dirname -- "${log_path}")")"
+        if [[ -z "${prepared["${path}"]:-}" ]]; then
+            prepare_directory "${path}"
+            prepared["${path}"]=1
+        fi
+    done
+}
 
 load_password() {
     if [[ -n "${CLICKHOUSE_PASSWORD_FILE:-}" ]]; then
@@ -178,13 +257,16 @@ main() {
 
     if [[ $# -eq 0 || "${1:-}" == --* ]]; then
         load_password
-        mkdir -p "${DATA_DIR}" /var/log/clickhouse-server
+        prepare_configured_directories
         write_users_config
         initialize_database
+        cd "${DATA_DIR}"
         exec clickhouse-server --config-file="${CONFIG_FILE}" "$@"
     fi
 
     exec "$@"
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
+fi

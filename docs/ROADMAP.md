@@ -20,22 +20,22 @@ Complete these work packages in order. Each package should normally be a separat
 
 **Implementation**
 
-- [ ] Replace `CLICKHOUSE_DATA_DIR` as an independent source of truth. Extract the effective ClickHouse `path` from `CLICKHOUSE_CONFIG`, use it for initialization-state detection and the server working directory, and either remove the environment variable or make any retained compatibility behavior fail on disagreement.
-- [ ] Make the generated users-configuration path consistent with a custom primary data path without requiring a writable container root.
-- [ ] Discover local writable paths from the effective configuration: the primary path, `tmp_path`, `user_files_path`, `format_schema_path`, file log directories, and every configured disk `path` and `metadata_path`.
-- [ ] Create missing directories as the current identity and validate that required paths are writable. Never start as root or perform an entrypoint `chown`; report the failing path and current UID/GID with actionable guidance.
-- [ ] Preserve compatibility with arbitrary OpenShift UIDs, UID `101`, group `0`, read-only roots, SELinux bind mounts, and storage backends where root squash prevents ownership repair.
+- [x] Replace `CLICKHOUSE_DATA_DIR` as an independent source of truth. Extract the effective ClickHouse `path` from `CLICKHOUSE_CONFIG`, use it for initialization-state detection and the server working directory, and either remove the environment variable or make any retained compatibility behavior fail on disagreement.
+- [x] Make the generated users-configuration path consistent with a custom primary data path without requiring a writable container root.
+- [x] Discover local writable paths from the effective configuration: the primary path, `tmp_path`, `user_files_path`, `format_schema_path`, file log directories, and every configured disk `path` and `metadata_path`.
+- [x] Create missing directories as the current identity and validate that required paths are writable. Never start as root or perform an entrypoint `chown`; report the failing path and current UID/GID with actionable guidance.
+- [x] Preserve compatibility with arbitrary OpenShift UIDs, UID `101`, group `0`, read-only roots, SELinux bind mounts, and storage backends where root squash prevents ownership repair.
 
 **Tests**
 
-- [ ] Add smoke cases for the default path, a custom config-derived primary path, additional local disk and metadata paths, restart persistence, and initialization detection on an existing custom data directory.
-- [ ] Add negative cases for a non-writable primary path, non-writable additional disk, disagreement with any retained legacy environment variable, relative or empty path handling, and operation without root or extra capabilities.
-- [ ] Run the path suite with UID `101:0` and an arbitrary OpenShift-style UID. Confirm that failures occur before partial initialization and contain no secret values.
+- [x] Add smoke and deterministic cases for the default path, a custom config-derived primary path, additional local disk and metadata paths, restart persistence, and initialization detection on an existing custom data directory.
+- [x] Add negative cases for a non-writable primary path, non-writable additional disk, disagreement with any retained legacy environment variable, relative or empty path handling, and operation without root or extra capabilities.
+- [x] Run the path suite with UID `101:0` and an arbitrary OpenShift-style UID. Confirm that failures occur before partial initialization and contain no secret values.
 
 **User documentation and exit evidence**
 
-- [ ] Add `docs/ROOTLESS.md` explaining the security model, why the image does not start as root, supported UID/GID patterns, named volumes, bind-mount preparation, Kubernetes `fsGroup`, OpenShift arbitrary UIDs, SELinux `:Z`, NFS/root-squash limitations, custom data paths, additional disks, and permission troubleshooting.
-- [ ] Update the README environment table, production guide, and official-image comparison so none imply that an environment variable changes ClickHouse storage by itself.
+- [x] Add `docs/ROOTLESS.md` explaining the security model, why the image does not start as root, supported UID/GID patterns, named volumes, bind-mount preparation, Kubernetes `fsGroup`, OpenShift arbitrary UIDs, SELinux `:Z`, NFS/root-squash limitations, custom data paths, additional disks, and permission troubleshooting.
+- [x] Update the README environment table, production guide, and official-image comparison so none imply that an environment variable changes ClickHouse storage by itself.
 - [ ] Retain successful and intentional-failure smoke logs demonstrating every path and identity case. Review the final entrypoint against the current official ClickHouse entrypoint without copying its root/chown behavior.
 
 #### 2. Native architecture CI qualification

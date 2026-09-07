@@ -43,6 +43,9 @@ jobs:
       - name: Test release tag validation
         run: bash tests/release-tag.sh
 
+      - name: Test entrypoint path preparation
+        run: bash tests/entrypoint-paths.sh
+
       - name: Test SPDX augmentation
         run: python -m unittest discover --start-directory tests --pattern "test_*.py"
 

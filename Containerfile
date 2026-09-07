@@ -52,7 +52,7 @@ RUN microdnf install -y dnf gzip tar \
          /runtime/docker-entrypoint-initdb.d \
          /runtime/etc/clickhouse-server/config.d \
          /runtime/etc/clickhouse-server/users.d \
-         /runtime/var/lib/clickhouse/generated \
+         /runtime/var/lib/clickhouse \
          /runtime/var/log/clickhouse-server \
     && chown -R 101:0 \
          /runtime/docker-entrypoint-initdb.d \
@@ -86,8 +86,7 @@ COPY --chown=101:0 --chmod=0644 container/config.d/container.xml /etc/clickhouse
 
 ENV LANG="C.UTF-8" \
     TZ="UTC" \
-    CLICKHOUSE_CONFIG="/etc/clickhouse-server/config.xml" \
-    CLICKHOUSE_DATA_DIR="/var/lib/clickhouse"
+    CLICKHOUSE_CONFIG="/etc/clickhouse-server/config.xml"
 
 USER 101:0
 WORKDIR /var/lib/clickhouse

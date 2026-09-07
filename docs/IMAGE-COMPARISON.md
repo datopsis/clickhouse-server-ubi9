@@ -37,12 +37,12 @@ Secure ports are configured rather than declared by default: `8443` for HTTPS, `
 | `CLICKHOUSE_ALWAYS_RUN_INITDB_SCRIPTS` | Yes | Yes |
 | `CLICKHOUSE_INIT_TIMEOUT` | Yes; default `60` seconds | Yes; default `1000` retries |
 | `CLICKHOUSE_CONFIG` | Yes | Yes |
-| `CLICKHOUSE_DATA_DIR` | Yes; default `/var/lib/clickhouse` | Data path is extracted from ClickHouse config |
+| Primary data path | Extracted from the effective ClickHouse config; default `/var/lib/clickhouse` | Extracted from the effective ClickHouse config |
 | `CLICKHOUSE_RUN_AS_ROOT`, UID/GID, no-chown options | No; fixed non-root security model | Yes |
 | Init files | Executable/sourced `.sh`, `.sql`, `.sql.gz`, lexical order | Same file types; shell glob order |
-| Additional configured disk paths | Operator must provision permissions | Official entrypoint discovers and prepares configured paths |
+| Additional configured disk paths | Entrypoint discovers and creates paths as the current identity; operator must provision writable mounts and ownership | Official entrypoint discovers paths and can create/chown them when it starts as root; non-root mode still requires writable parents |
 | Arbitrary OpenShift UID | Smoke-tested with group `0` permissions | Custom `--user` documented upstream; different entrypoint model |
 
-Applications that depend on the official image's named-user creation, root mode, automatic custom-disk ownership, skip-user-setup escape hatch, or exact initialization semantics need an explicit migration plan. Do not add those features automatically: several conflict with this image's non-root and least-privilege goals.
+Applications that depend on the official image's named-user creation, root mode, automatic custom-disk ownership, skip-user-setup escape hatch, or exact initialization semantics need an explicit migration plan. Do not add those features automatically: several conflict with this image's non-root and least-privilege goals. This image prepares configuration-derived paths only with its existing identity and never claims it can repair a host, PVC, or NFS export. See [rootless storage and permissions](ROOTLESS.md).
 
 The comparison source is ClickHouse's [official image documentation](https://github.com/ClickHouse/ClickHouse/blob/master/docker/server/README.md), [Ubuntu Dockerfile](https://github.com/ClickHouse/ClickHouse/blob/master/docker/server/Dockerfile.ubuntu), and [entrypoint](https://github.com/ClickHouse/ClickHouse/blob/master/docker/server/entrypoint.sh). Re-measure on every supported release because upstream content and behavior change.

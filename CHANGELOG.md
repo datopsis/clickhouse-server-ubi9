@@ -22,3 +22,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Entrypoint initialization and health checks over TLS-only native-port configurations.
 - Complete Grype JSON inventories, including unfixed findings, retained beside the fixed High/Critical blocking result in CI and release runs.
 - Explicit ClickHouse TGZ component records in SPDX inventories and a keyless, digest-bound complete SPDX release attestation.
+- Rootless storage guidance for named volumes, bind mounts, Kubernetes/OpenShift identities, custom data paths, additional disks, SELinux, and NFS.
+
+### Changed
+
+- The entrypoint now derives primary and additional writable directories from the effective ClickHouse configuration, rejects the misleading `CLICKHOUSE_DATA_DIR` variable, and reports non-root permission failures before server startup.

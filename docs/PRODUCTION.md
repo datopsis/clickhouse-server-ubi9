@@ -18,8 +18,9 @@ Production readiness is a property of a tested deployment, not an image label. C
 
 ## 3. Provision durable storage
 
-- Mount durable, low-latency storage at `/var/lib/clickhouse`. Size it for data, merges, mutations, temporary work, replication backlog, and recovery headroom—not only current table bytes.
+- Mount durable, low-latency storage at the effective ClickHouse `<path>`, which defaults to `/var/lib/clickhouse`. Configure custom paths in ClickHouse XML rather than an environment variable. Size it for data, merges, mutations, temporary work, replication backlog, and recovery headroom—not only current table bytes.
 - Set permissions for UID `101`, group `0`, and group write, or validate the platform's arbitrary-UID policy. Test the actual CSI/NFS/storage backend; root-squash and `fsGroup` behavior vary.
+- Provision every configured local disk and metadata path before startup. Follow [rootless storage and permissions](ROOTLESS.md) for named volumes, bind mounts, Kubernetes/OpenShift identities, SELinux, and failure diagnostics.
 - Keep the root filesystem read-only and mount `/tmp` as a bounded `tmpfs`. Do not place durable data or backups in the container writable layer.
 - Define disk-full alerts and retention policies. A persistent volume is not a backup.
 
