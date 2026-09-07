@@ -12,6 +12,7 @@ assets or scripts:
 3. [Connected and disconnected TLS trust](diagrams/tls-trust-flows.svg)
 4. [Build, release, and assurance evidence](diagrams/assurance-pipeline.svg)
 5. [Security-control ownership](diagrams/control-ownership.svg)
+6. [OpenShift qualification](diagrams/openshift-qualification.svg)
 
 The TLS qualification behavior is represented explicitly:
 

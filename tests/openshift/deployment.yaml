@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: clickhouse
+  labels:
+    app.kubernetes.io/name: clickhouse-qualification
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: clickhouse-qualification
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: clickhouse-qualification
+    spec:
+      serviceAccountName: clickhouse-qualification
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: clickhouse
+          image: IMAGE_REFERENCE
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: CLICKHOUSE_PASSWORD_FILE
+              value: /run/secrets/clickhouse-password/password
+          ports:
+            - name: https
+              containerPort: 8443
+            - name: native-tls
+              containerPort: 9440
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          startupProbe:
+            exec:
+              command:
+                - /usr/local/bin/clickhouse-entrypoint
+                - healthcheck
+            failureThreshold: 30
+            periodSeconds: 5
+            timeoutSeconds: 3
+          readinessProbe:
+            exec:
+              command:
+                - /usr/local/bin/clickhouse-entrypoint
+                - healthcheck
+            failureThreshold: 3
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            exec:
+              command:
+                - /usr/local/bin/clickhouse-entrypoint
+                - healthcheck
+            failureThreshold: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/clickhouse
+            - name: temporary
+              mountPath: /tmp
+            - name: config
+              mountPath: /etc/clickhouse-server/config.d/tls.xml
+              subPath: tls.xml
+              readOnly: true
+            - name: tls
+              mountPath: /run/secrets/clickhouse-tls
+              readOnly: true
+            - name: password
+              mountPath: /run/secrets/clickhouse-password
+              readOnly: true
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: clickhouse-data
+        - name: temporary
+          emptyDir:
+            medium: Memory
+            sizeLimit: 256Mi
+        - name: config
+          configMap:
+            name: clickhouse-qualification-config
+            defaultMode: 0444
+        - name: tls
+          secret:
+            secretName: clickhouse-tls
+            defaultMode: 0440
+        - name: password
+          secret:
+            secretName: clickhouse-password
+            defaultMode: 0440

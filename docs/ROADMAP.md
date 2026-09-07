@@ -81,10 +81,11 @@ This repository owns image-specific behavior, basic usage, and minimal platform 
 
 **Procedure documentation**
 
-- [ ] Add `docs/OPENSHIFT-TESTING.md` with step-by-step instructions for obtaining a Red Hat Developer Sandbox or using OpenShift Local, installing/logging in with `oc`, selecting a project, verifying quotas, and cleaning up all test resources.
-- [ ] Provide minimal qualification resources for a digest-pinned image, password Secret, TLS Secret, configuration ConfigMap, RWO PVC, Service, and HTTPS Route where applicable. Keep native TCP behind a suitable Service or TCP-capable ingress rather than implying an HTTP Route supports it. Production overlays, topology, and automation belong in `clickhouse-production-stack`.
-- [ ] Document GHCR public access and private `imagePullSecret` alternatives, restricted SCC expectations, arbitrary UID/group behavior, `runAsNonRoot`, read-only root filesystem, runtime-default seccomp, dropped capabilities, bounded `/tmp`, resource requests/limits, probes, and termination grace periods.
-- [ ] Include exact commands for inspecting assigned UID/GID, SCC admission, mounts, permissions, events, logs, health, TLS, PVC binding, and image digest. Explain common `permission denied`, `CrashLoopBackOff`, route, and certificate failures from an operator's perspective.
+- [x] Add `docs/OPENSHIFT-TESTING.md` with step-by-step instructions for obtaining a Red Hat Developer Sandbox or using OpenShift Local, installing/logging in with `oc`, selecting a project, verifying quotas, and cleaning up all test resources.
+- [x] Provide minimal qualification resources for a digest-pinned image, password Secret, TLS Secret, configuration ConfigMap, RWO PVC, Service, and HTTPS passthrough Route. Keep native TCP behind the Service. Production overlays, topology, and automation belong in `clickhouse-production-stack`.
+- [x] Document GHCR public access and private `imagePullSecret` alternatives, restricted SCC expectations, arbitrary UID/group behavior, `runAsNonRoot`, read-only root filesystem, runtime-default seccomp, dropped capabilities, bounded `/tmp`, resource requests/limits, probes, and termination grace periods.
+- [x] Include exact commands for inspecting assigned UID/GID, SCC admission, mounts, permissions, events, logs, health, TLS, PVC binding, and image digest. Explain common permission, admission, quota, route, certificate, and storage failures from an operator's perspective.
+- [x] Add deterministic fixture-policy tests that reject root, privilege escalation, host namespaces/paths, added capabilities, clear-text service ports, mutable image placeholders in rendered use, or loss of required probes and bounded temporary storage.
 
 **Qualification run**
 

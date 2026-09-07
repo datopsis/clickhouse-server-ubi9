@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="680" viewBox="0 0 1200 680" role="img" aria-labelledby="title desc">
+  <title id="title">OpenShift qualification architecture</title>
+  <desc id="desc">An external HTTPS client reaches a passthrough Route and TLS-only ClickHouse service. An internal client verifies native TLS. The restricted pod receives configuration and secrets read-only, writes to a persistent volume and memory-backed temporary volume, and emits health and logs to OpenShift.</desc>
+  <defs>
+    <style>.bg{fill:#f8fafc}.zone{fill:#fff;stroke:#475569;stroke-width:2}.pod{fill:#e0f2fe;stroke:#0369a1;stroke-width:3}.secure{fill:#dcfce7;stroke:#15803d;stroke-width:2}.platform{fill:#fef3c7;stroke:#92400e;stroke-width:2}.client{fill:#f3e8ff;stroke:#7e22ce;stroke-width:2}.t{font:700 22px system-ui;fill:#0f172a}.h{font:700 16px system-ui;fill:#0f172a}.p{font:13px system-ui;fill:#334155}.a{stroke:#15803d;stroke-width:2;fill:none;marker-end:url(#a)}.d{stroke:#475569}</style>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10z" fill="#15803d"/></marker>
+  </defs>
+  <rect class="bg" width="1200" height="680"/><text class="t" x="40" y="45">OpenShift qualification architecture</text>
+  <rect class="zone" x="230" y="75" width="930" height="550" rx="18"/><text class="h" x="255" y="110">OpenShift project · restricted-v2 SCC</text>
+  <rect class="client" x="30" y="140" width="160" height="90" rx="12"/><text class="h" x="60" y="175">External client</text><text class="p" x="55" y="202">CA + DNS validation</text>
+  <rect class="secure" x="275" y="135" width="185" height="100" rx="12"/><text class="h" x="325" y="170">Route</text><text class="p" x="300" y="197">TLS passthrough</text><text class="p" x="300" y="219">No router-held key</text>
+  <rect class="secure" x="510" y="135" width="185" height="100" rx="12"/><text class="h" x="560" y="170">Service</text><text class="p" x="535" y="197">8443 HTTPS</text><text class="p" x="535" y="219">9440 native TLS</text>
+  <rect class="client" x="275" y="300" width="185" height="100" rx="12"/><text class="h" x="315" y="335">Client pod</text><text class="p" x="300" y="362">Strict internal CA</text><text class="p" x="300" y="384">Service DNS identity</text>
+  <rect class="pod" x="745" y="125" width="350" height="300" rx="16"/><text class="h" x="820" y="160">ClickHouse pod</text><text class="p" x="785" y="195">Arbitrary non-root UID · group 0</text><text class="p" x="785" y="222">Read-only root · RuntimeDefault seccomp</text><text class="p" x="785" y="249">No privilege escalation · capabilities dropped</text><text class="p" x="785" y="276">TLS-only listeners and authenticated probes</text><rect class="platform" x="785" y="315" width="125" height="75" rx="9"/><text class="h" x="805" y="345">Secrets</text><text class="p" x="798" y="370">key + password</text><rect class="platform" x="930" y="315" width="125" height="75" rx="9"/><text class="h" x="948" y="345">ConfigMap</text><text class="p" x="947" y="370">TLS config</text>
+  <rect class="platform" x="520" y="500" width="220" height="85" rx="12"/><text class="h" x="575" y="533">RWO PVC</text><text class="p" x="550" y="560">/var/lib/clickhouse</text>
+  <rect class="platform" x="785" y="500" width="220" height="85" rx="12"/><text class="h" x="825" y="533">Memory emptyDir</text><text class="p" x="850" y="560">bounded /tmp</text>
+  <path class="a" d="M190 185H275"/><path class="a" d="M460 185H510"/><path class="a" d="M695 185H745"/><path class="a" d="M460 350H600V235"/><path class="a d" d="M830 425L700 500"/><path class="a d" d="M940 425L900 500"/>
+  <text class="p" x="275" y="610">Qualification records SCC, UID/GID, digest, TLS results, probes, PVC replacement, backup/restore, failure diagnostics, and cleanup.</text>
+</svg>
