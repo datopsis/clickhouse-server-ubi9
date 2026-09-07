@@ -66,4 +66,3 @@ This roadmap is the release gate for the first supported image. A checked item m
 - [ ] Evaluate reproducible-build variance across GitHub-hosted runners.
 - [ ] Add package-consumer and upgrade tests for each supported ClickHouse update path.
 - [ ] Review artifact retention after real usage and adjust only with a documented storage/forensics rationale.
-

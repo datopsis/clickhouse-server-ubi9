@@ -89,4 +89,3 @@ Authoritative references:
 - [Uploading SARIF to GitHub](https://docs.github.com/en/code-security/code-scanning/integrating-with-code-scanning/uploading-a-sarif-file-to-github)
 - [BuildKit attestations](https://docs.docker.com/build/metadata/attestations/)
 - [Cosign container signing](https://docs.sigstore.dev/cosign/signing/signing_with_containers/)
-

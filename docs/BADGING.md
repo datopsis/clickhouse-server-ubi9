@@ -42,4 +42,3 @@ References:
 - [OpenSSF Scorecard badge](https://github.com/ossf/scorecard-action#scorecard-badge)
 - [Shields.io GitHub badges](https://shields.io/badges)
 - [Red Hat Universal Base Images](https://developers.redhat.com/products/rhel/ubi)
-
