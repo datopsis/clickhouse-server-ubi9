@@ -41,6 +41,19 @@ These positions keep claims narrower than the available evidence. Package 1
 must explicitly approve or revise them before later qualification work is
 treated as release evidence.
 
+Use these terms consistently in public documentation:
+
+- **Supported** means an exact documented platform was qualified and is
+  covered by the project's support commitment.
+- **Compatible** means automated evidence demonstrates interoperability, but
+  the platform is not part of the primary production-support commitment.
+- **Preview/unqualified** means procedures or fixtures exist but required
+  platform qualification has not occurred.
+- **Unsupported** means deliberately outside the first-release boundary.
+
+Until final-candidate qualification closes the relevant gate, describe a
+version as a target or currently tested baseline rather than supported.
+
 | Area | Working v1 position |
 | --- | --- |
 | Architectures | Support native `linux/amd64` and `linux/arm64`. |
@@ -57,14 +70,18 @@ treated as release evidence.
 ## Release packages
 
 Complete packages in order unless a later item is purely preparatory and
-cannot affect an earlier decision. Each package should normally be a separate
-pull request. Packages 2 through 5 may change the image or configuration, so
-the final upstream baseline is intentionally selected in package 6 rather
-than at the beginning.
+cannot affect an earlier decision. Each numbered package should normally use
+the small lettered pull-request increments below. Start each increment from
+updated `main`, limit it to its stated files and decisions, validate it, merge
+it through protected checks, delete the merged branch, and summarize its
+decisions, evidence, limitations, and remaining work before starting the next
+increment. Packages 2 through 5 may change the image or configuration, so the
+final upstream baseline is intentionally selected in package 6 rather than at
+the beginning.
 
 ### 1. Release contract, roadmap, and badges
 
-**Scope**
+#### 1A. Support contract and rootless user guidance
 
 - [x] Reorganize the release roadmap around dependency-ordered work packages
   and make evidence regeneration an explicit part of the process.
@@ -72,17 +89,48 @@ than at the beginning.
   treatment of Docker, OpenShift, disconnected operation, FIPS, and SCAP.
 - [ ] Reconcile [SUPPORT.md](SUPPORT.md), [README.md](../README.md), and all
   operator guides with the approved boundary.
+- [ ] Publish one support matrix using the definitions above. Explicitly
+  classify native AMD64/ARM64, the exact Podman and Red Hat host baseline,
+  Docker compatibility, OpenShift, restricted-Kubernetes proxy evidence,
+  connected/disconnected operation, TLS-enabled/TLS-disabled operation, FIPS,
+  STIG/SCAP, GHCR, Docker Hub, and optional paid services.
+- [ ] Explain the intentional rootless differences from the official
+  ClickHouse image: no entrypoint root phase, no dynamic volume `chown`, and
+  no environment variable that silently rewrites ClickHouse storage paths.
+- [ ] Document that primary and additional storage paths come from effective
+  ClickHouse configuration and must already be writable by UID `101:0` or the
+  platform-assigned arbitrary UID with group `0`.
+- [ ] Add tested Podman examples for the default `/var/lib/clickhouse` path, a
+  custom primary `<path>`, additional configured disks, named volumes, bind
+  mounts, read-only root filesystems, and actionable permission diagnostics.
+
+#### 1B. Evidence-backed badges
+
+- [ ] Inventory every existing and proposed badge by exact claim, evidence,
+  destination, owner, update mechanism, and removal condition.
 - [ ] Add only evidence-backed badges. Evaluate an OpenSSF Best Practices
-  badge, native AMD64/ARM64 qualification, the tested Podman floor, and GHCR
-  publication. Do not add Codecov, Go Reference, OCI Distribution
-  conformance, FOSSA, compliance, or vulnerability-free badges without an
-  applicable implementation and inspectable evidence.
+  badge, CI status, security workflow status, native AMD64/ARM64
+  qualification, the tested Podman floor, Apache-2.0 packaging-code license,
+  latest GitHub release, and GHCR publication. Do not add Codecov, Go
+  Reference, OCI Distribution conformance, FOSSA, compliance, OpenShift
+  certification, FIPS validation, STIG compliance, or vulnerability-free
+  badges without an applicable implementation and inspectable evidence.
 - [ ] Register the project with OpenSSF Best Practices when the required
   project metadata is complete. Display its badge only after a real project
   record exists, and preserve the badge's actual status rather than implying
   certification.
 - [ ] Update [BADGING.md](BADGING.md) with each approved badge's source,
   destination, evidence, owner, and removal condition.
+
+#### 1C. Qualification-ledger preparation
+
+- [ ] Define the ledger schema in [QUALIFICATION.md](QUALIFICATION.md): commit,
+  image digest, architecture, ClickHouse version, both UBI digests, runtime and
+  platform versions, configuration/security profile, scanner and database
+  versions, workflow or procedure, result, limitations, evidence level,
+  artifact location, and retention expectation.
+- [ ] Ensure subsequent workflows and manual procedures can populate those
+  fields without committing secrets or unbounded generated artifacts.
 
 **Exit evidence**
 
@@ -92,17 +140,19 @@ than at the beginning.
 
 ### 2. Threat model and authoritative source provenance
 
-**Threat model**
+#### 2A. Threat model
 
 - [ ] Document build-input, CI, registry, runtime identity, storage,
-  ingress/egress TLS, secret, logging, scanner, and release-publication threats.
+  ingress/egress TLS, private-key and secret, logging/sensitive-data, scanner
+  limitation/evidence-integrity, tag replacement, and release-publication
+  threats.
 - [ ] Identify trust boundaries and responsibilities for this image,
   `clickhouse-production-stack`, the container runtime/platform, and the
   operating organization.
 - [ ] Map existing mitigations and open risks without promoting them to formal
   control implementations before source analysis.
 
-**Source register**
+#### 2B. Authoritative source register
 
 - [ ] Follow [SECURITY-CONTROLS.md](SECURITY-CONTROLS.md) and create
   `security/stig-sources.yaml`.
