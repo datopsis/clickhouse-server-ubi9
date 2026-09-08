@@ -1,233 +1,436 @@
 # First-release roadmap
 
-This roadmap is the release gate for the first supported image. A checked item must have reviewable evidence in a pull request, successful workflow run, release asset, or linked issue. Items marked **deferred** are deliberate non-blockers and must not silently become release requirements.
+This roadmap is the release gate for the first supported
+`clickhouse-server-ubi9` image. Work is organized in small, reviewable packages
+whose order follows technical dependencies. Evidence is expected to be
+regenerated as the candidate changes; preserving an older artifact must never
+delay a necessary implementation or security change.
 
-## Release blockers
+A checked item requires reviewable evidence in a pull request, workflow run,
+release asset, or linked qualification record. A passing job is not sufficient
+when the item also requires human analysis, an external environment, or a
+support decision.
 
-### Immediate priorities
+## Evidence lifecycle
 
-1. Triage the current unfixed matches according to [VULNERABILITY-MANAGEMENT.md](VULNERABILITY-MANAGEMENT.md), then rebuild on the newest reviewed UBI digests and retain the before/after evidence.
-2. Validate [TLS.md](TLS.md) with CA-issued certificates for HTTPS and native TCP, including rotation and a fully disconnected rehearsal.
-3. Execute [PRODUCTION.md](PRODUCTION.md) on native `amd64`, native `arm64`, and OpenShift, recording resource, storage, backup/restore, shutdown, and recovery evidence.
-4. Complete the ClickHouse/UBI notice and SBOM review described in [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md).
-5. Establish the tailored container SCAP baseline in [SCAP.md](SCAP.md), retain both architecture reports, and review every applicability decision before enforcing selected rules.
-6. Complete the reviewed [security-control engineering and SCTM export](SECURITY-CONTROLS.md), including Database SRG/STIG provenance, control procedures, OSCAL/CSV artifacts, and ownership boundaries.
-7. Resolve the [FIPS](FIPS.md) and [host/runtime support](SUPPORT.md) gates without making unsupported cryptographic or platform claims, and review the [architecture diagrams](ARCHITECTURE.md) against the release candidate.
-8. Publish the first signed GHCR release only after every blocker below is complete. Reconsider Docker Hub and paid security services after that release has real consumer demand.
+The repository uses three evidence levels:
 
-### Incremental delivery plan
+1. **Development evidence** is produced for pull requests. It proves the
+   proposed revision was tested but does not qualify a release.
+2. **Integration evidence** is produced from `main`. It detects differences in
+   merge context and maintains recurring security visibility.
+3. **Release-candidate evidence** is regenerated after the final
+   image-affecting change and is bound to the exact candidate commit, image
+   digest, architecture, configuration profile, scanner inputs, and relevant
+   platform versions. Only this level closes final release gates.
 
-Complete these work packages in order. Each package should normally be a separate pull request and commit so its behavior, documentation, and evidence can be reviewed before the next package changes the same release surface. Do not check a package merely because its implementation exists; retain the listed exit evidence.
+Changing ClickHouse, either UBI digest, image contents, entrypoint behavior,
+security configuration, scanner content, tailoring, or a qualification
+procedure invalidates the affected release-candidate evidence. Regenerate it
+without treating the earlier run as wasted work. Historical results remain
+useful for comparison and regression analysis.
 
-This repository owns image-specific behavior, basic usage, and minimal platform qualification. Production-ready deployment compositions, cluster topology, operational automation, and environment overlays belong in the separate `clickhouse-production-stack` repository. Qualification fixtures here should be directly reusable there where practical, but must not grow into a second deployment stack.
+Maintain a release evidence ledger in [QUALIFICATION.md](QUALIFICATION.md).
+Each retained result must record its workflow or procedure, commit, image
+digest where available, architecture, inputs, result, and whether it is
+development, integration, or release-candidate evidence.
 
-#### 1. Rootless storage and configuration contract
+## Working first-release boundary
+
+These positions keep claims narrower than the available evidence. Package 1
+must explicitly approve or revise them before later qualification work is
+treated as release evidence.
+
+| Area | Working v1 position |
+| --- | --- |
+| Architectures | Support native `linux/amd64` and `linux/arm64`. |
+| Primary runtime | Support a qualified Podman 5.3-or-newer baseline on an exact documented Red Hat host/runtime combination. |
+| Docker | Retain GitHub Actions compatibility evidence; do not imply the same production-support commitment as Podman without separate qualification. |
+| OpenShift | Provide restricted-SCC fixtures and procedures. Claim support only if an exact OpenShift release is qualified; otherwise label it preview/unqualified. |
+| Disconnected operation | Provide and automate the isolated procedure. Claim representative-boundary qualification only if that external rehearsal occurs. |
+| FIPS | Do not claim FIPS 140-3 validation for the upstream static ClickHouse artifact. |
+| STIG and SCAP | Do not claim STIG certification. Report only the selected image-filesystem checks and their exact evidence boundary. |
+| Security controls | Publish component evidence consumable by a cyber team, not a completed SCTM, SSP, authorization, or assessor decision. |
+| Registry | Publish the first release to GHCR. Reconsider Docker Hub after demonstrated consumer demand. |
+| Paid services | Do not require Endor Labs, FOSSA, or another paid account for v1. Reconsider only when it adds material coverage. |
+
+## Release packages
+
+Complete packages in order unless a later item is purely preparatory and
+cannot affect an earlier decision. Each package should normally be a separate
+pull request. Packages 2 through 5 may change the image or configuration, so
+the final upstream baseline is intentionally selected in package 6 rather
+than at the beginning.
+
+### 1. Release contract, roadmap, and badges
+
+**Scope**
+
+- [x] Reorganize the release roadmap around dependency-ordered work packages
+  and make evidence regeneration an explicit part of the process.
+- [ ] Review and approve the working v1 boundary above, including the exact
+  treatment of Docker, OpenShift, disconnected operation, FIPS, and SCAP.
+- [ ] Reconcile [SUPPORT.md](SUPPORT.md), [README.md](../README.md), and all
+  operator guides with the approved boundary.
+- [ ] Add only evidence-backed badges. Evaluate an OpenSSF Best Practices
+  badge, native AMD64/ARM64 qualification, the tested Podman floor, and GHCR
+  publication. Do not add Codecov, Go Reference, OCI Distribution
+  conformance, FOSSA, compliance, or vulnerability-free badges without an
+  applicable implementation and inspectable evidence.
+- [ ] Register the project with OpenSSF Best Practices when the required
+  project metadata is complete. Display its badge only after a real project
+  record exists, and preserve the badge's actual status rather than implying
+  certification.
+- [ ] Update [BADGING.md](BADGING.md) with each approved badge's source,
+  destination, evidence, owner, and removal condition.
+
+**Exit evidence**
+
+- [ ] A reviewed support/claim matrix contains no ambiguous release blocker,
+  and every badge links to current inspectable evidence rather than a general
+  quality claim.
+
+### 2. Threat model and authoritative source provenance
+
+**Threat model**
+
+- [ ] Document build-input, CI, registry, runtime identity, storage,
+  ingress/egress TLS, secret, logging, scanner, and release-publication threats.
+- [ ] Identify trust boundaries and responsibilities for this image,
+  `clickhouse-production-stack`, the container runtime/platform, and the
+  operating organization.
+- [ ] Map existing mitigations and open risks without promoting them to formal
+  control implementations before source analysis.
+
+**Source register**
+
+- [ ] Follow [SECURITY-CONTROLS.md](SECURITY-CONTROLS.md) and create
+  `security/stig-sources.yaml`.
+- [ ] Acquire authoritative copies of the current DISA Database SRG, Container
+  Platform SRG, RHEL 9 STIG, and selected active database-product STIGs.
+- [ ] Record publisher, title, version/release, release date, URL, retrieval
+  date, SHA-256, license/redistribution handling, and current/superseded status.
+- [ ] Pin the NIST SP 800-53 Rev. 5, SP 800-53A Rev. 5, and OSCAL schema/tool
+  versions used by the project.
+
+**Exit evidence**
+
+- [ ] Security-focused review confirms that sources came from their publishers,
+  all hashes reproduce, and no superseded source is silently normative.
+
+### 3. Database security requirement analysis
+
+This package analyzes requirements; it does not implement fixes in the same
+pull request.
+
+- [ ] Create `security/stig-analysis.csv` with source IDs, CCI/NIST mappings,
+  severity, objective, threat, ClickHouse relevance, disposition, ownership,
+  feasibility, conflicts, residual risk, rationale, procedure, evidence, and
+  review metadata.
+- [ ] Analyze every Database SRG requirement against ClickHouse behavior and
+  the image/deployment boundary.
+- [ ] Compare active MongoDB, PostgreSQL-distribution, Oracle Database, Oracle
+  MySQL, Microsoft SQL Server, and other selected database STIGs as
+  implementation references. Never transfer a product-specific command,
+  file, or assumption directly to ClickHouse.
+- [ ] Classify every item as `adopt`, `deployment-owned`, `inherited`,
+  `not-applicable`, `unsupported`, or `needs-research`.
+- [ ] Require two-person review for every adoption, exclusion,
+  not-applicable, and unsupported decision. Open an issue for unresolved
+  requirements rather than omitting them.
+
+**Exit evidence**
+
+- [ ] Every Database SRG requirement is present exactly once, cross-source
+  comparisons are traceable, and the review record explicitly begins with
+  zero inherited product-STIG controls.
+
+### 4. Security-control implementation and cyber-team artifacts
 
 **Implementation**
 
-- [x] Replace `CLICKHOUSE_DATA_DIR` as an independent source of truth. Extract the effective ClickHouse `path` from `CLICKHOUSE_CONFIG`, use it for initialization-state detection and the server working directory, and either remove the environment variable or make any retained compatibility behavior fail on disagreement.
-- [x] Make the generated users-configuration path consistent with a custom primary data path without requiring a writable container root.
-- [x] Discover local writable paths from the effective configuration: the primary path, `tmp_path`, `user_files_path`, `format_schema_path`, file log directories, and every configured disk `path` and `metadata_path`.
-- [x] Create missing directories as the current identity and validate that required paths are writable. Never start as root or perform an entrypoint `chown`; report the failing path and current UID/GID with actionable guidance.
-- [x] Preserve compatibility with arbitrary OpenShift UIDs, UID `101`, group `0`, read-only roots, SELinux bind mounts, and storage backends where root squash prevents ownership repair.
+- [ ] Classify adopted requirements as immutable image invariants,
+  configurable ClickHouse controls, deployment controls, or
+  organizational/inherited controls.
+- [ ] Implement only image invariants and reusable ClickHouse configuration in
+  this repository. Place production topology and platform controls in
+  `clickhouse-production-stack`.
+- [ ] For each safely configurable control, provide secure and compatibility
+  fragments with exact enable/disable steps, default, prerequisites, restart
+  behavior, operational impact, loss of protection, and verification.
+- [ ] Do not provide an off switch for trust-boundary invariants merely for
+  convenience, and do not let entrypoint variables silently override mounted
+  control configuration.
+- [ ] Add positive and negative AMD64/ARM64 tests that accurately distinguish
+  enabled, disabled, weakened, unsupported, and deployment-owned behavior.
 
-**Tests**
+**Control artifacts**
 
-- [x] Add smoke and deterministic cases for the default path, a custom config-derived primary path, additional local disk and metadata paths, restart persistence, and initialization detection on an existing custom data directory.
-- [x] Add negative cases for a non-writable primary path, non-writable additional disk, disagreement with any retained legacy environment variable, relative or empty path handling, and operation without root or extra capabilities.
-- [x] Run the path suite with UID `101:0` and an arbitrary OpenShift-style UID. Confirm that failures occur before partial initialization and contain no secret values.
-
-**User documentation and exit evidence**
-
-- [x] Add `docs/ROOTLESS.md` explaining the security model, why the image does not start as root, supported UID/GID patterns, named volumes, bind-mount preparation, Kubernetes `fsGroup`, OpenShift arbitrary UIDs, SELinux `:Z`, NFS/root-squash limitations, custom data paths, additional disks, and permission troubleshooting.
-- [x] Update the README environment table, production guide, and official-image comparison so none imply that an environment variable changes ClickHouse storage by itself.
-- [ ] Retain successful and intentional-failure smoke logs demonstrating every path and identity case. Review the final entrypoint against the current official ClickHouse entrypoint without copying its root/chown behavior.
-
-#### 2. Native architecture CI qualification
-
-**Implementation**
-
-- [x] Change the image job to an explicit native matrix: `ubuntu-24.04` with `linux/amd64` and `ubuntu-24.04-arm` with `linux/arm64`. Build and load one native image per job; do not use QEMU as native-runtime evidence.
-- [x] Run the complete smoke suite, Trivy image gate, augmented SPDX generation, blocking Grype gate, and full Grype inventory on each architecture.
-- [x] Give image tags, artifacts, SARIF categories, and cache scopes architecture-specific names so parallel jobs cannot overwrite or conflate evidence.
-- [x] Keep the release workflow's multi-platform manifest build, then inspect the manifest and prove that it contains the tested `linux/amd64` and `linux/arm64` variants.
-- [x] Preserve the protected `image` check as an aggregate job that fails unless both native matrix jobs pass before merge.
-
-**User documentation and exit evidence**
-
-- [x] Update `docs/CI.md` with runner labels, native-versus-emulated boundaries, artifact names, expected architecture checks, and local reproduction commands.
-- [x] Retain successful workflow URLs and per-architecture image version, package count, SBOM, vulnerability results, and smoke logs. Record runner architecture from `uname -m` rather than inferring it only from a workflow label. See [qualification evidence](QUALIFICATION.md#native-amd64-and-arm64-ci--2026-09-07).
-
-#### 3. CA-issued connected and disconnected TLS rehearsal
-
-**Automated connected test**
-
-- [x] Add a test that creates an ephemeral root and intermediate CA, issues a leaf certificate with the exact test DNS SAN, and mounts only the leaf key, chain, and public trust bundle into the container.
-- [x] Exercise HTTPS and native TLS with clear-text listeners removed. Require success with the correct CA and hostname and failure with an unrelated CA, wrong hostname, clear-text client, unreadable key, and incomplete chain.
-- [x] Exercise outbound TLS against both a normally trusted Internet endpoint and a controlled private-CA endpoint, proving the correct CA-bundle behavior for each rather than assuming all ClickHouse integrations share one TLS client configuration.
-- [x] Replace the leaf certificate through the documented rotation procedure, restart or roll out the server, verify the new serial/expiry, and prove the retired certificate is no longer served.
-
-**Disconnected rehearsal**
-
-- [x] Add `docs/TLS-REHEARSAL.md` with connected preparation, artifact inventory, SHA-256 recording, controlled transfer, internal image import, internal DNS, offline CSR signing, Secret/read-only mount creation, network isolation, validation, rotation, rollback, and cleanup procedures.
-- [x] Automate the isolated server/client phase on an internal network with external egress denied, private-CA service trust, renewal, and rollback on native AMD64 and ARM64.
-- [ ] Execute the operator rehearsal inside a representative disconnected security boundary. Preload required images/tools, generate the server key inside the boundary, transfer no CA private key, and operate without public DNS, ACME, OCSP, CRL, or package downloads unless an approved internal mirror is part of the design.
+- [ ] Publish a schema-valid `security/component-definition.json` NIST OSCAL
+  Component Definition as the canonical component artifact.
+- [ ] Deterministically generate `security/control-matrix.csv` for SCTM import
+  and fail CI when the generated view drifts.
+- [ ] Add `docs/CONTROL-IMPLEMENTATION.md` with per-control justification,
+  residual risk, and complete examine/test/interview procedures based on NIST
+  SP 800-53A.
+- [ ] Validate OSCAL identifiers, links, profiles, and schema using a pinned
+  toolchain.
 
 **Exit evidence**
 
-- [ ] Retain sanitized commands, certificate subjects/issuers/SANs/serials/expiry, network-isolation proof, positive and negative connection results, rotation evidence, and confirmation that no generated private key or certificate artifact entered Git.
+- [ ] The consuming cyber team confirms that the artifacts are usable component
+  inputs and not a completed system SCTM, SSP, authorization, STIG
+  certification, or acceptance of residual risk.
 
-#### 4. OpenShift qualification and operator procedure
+### 5. Cryptographic boundary, runtime support, and architecture review
 
-**Procedure documentation**
+**Cryptography**
 
-- [x] Add `docs/OPENSHIFT-TESTING.md` with step-by-step instructions for obtaining a Red Hat Developer Sandbox or using OpenShift Local, installing/logging in with `oc`, selecting a project, verifying quotas, and cleaning up all test resources.
-- [x] Provide minimal qualification resources for a digest-pinned image, password Secret, TLS Secret, configuration ConfigMap, RWO PVC, Service, and HTTPS passthrough Route. Keep native TCP behind the Service. Production overlays, topology, and automation belong in `clickhouse-production-stack`.
-- [x] Document GHCR public access and private `imagePullSecret` alternatives, restricted SCC expectations, arbitrary UID/group behavior, `runAsNonRoot`, read-only root filesystem, runtime-default seccomp, dropped capabilities, bounded `/tmp`, resource requests/limits, probes, and termination grace periods.
-- [x] Include exact commands for inspecting assigned UID/GID, SCC admission, mounts, permissions, events, logs, health, TLS, PVC binding, and image digest. Explain common permission, admission, quota, route, certificate, and storage failures from an operator's perspective.
-- [x] Add deterministic fixture-policy tests that reject root, privilege escalation, host namespaces/paths, added capabilities, clear-text service ports, mutable image placeholders in rendered use, or loss of required probes and bounded temporary storage.
+- [ ] Adopt the determination in [FIPS.md](FIPS.md): the upstream static
+  ClickHouse artifact is not claimed as FIPS 140-3 validated.
+- [ ] Record binary linkage, embedded cryptographic implementation/version,
+  and the absence or applicability of a CMVP certificate for the selected
+  ClickHouse build.
+- [ ] Test supported TLS 1.2/1.3 protocols and cipher behavior on AMD64 and
+  ARM64. Keep TLS 1.0/1.1 outside supported profiles and never equate protocol
+  negotiation with FIPS validation.
 
-**Qualification run**
+**Support and diagrams**
 
-- [ ] Deploy under the default restricted SCC without requesting `anyuid`, privileged mode, root, host paths, or additional capabilities.
-- [ ] Verify first-start initialization, password-file handling, arbitrary-UID operation, HTTPS, native TLS inside the cluster, readiness/liveness/startup behavior, graceful deletion, PVC persistence across pod replacement, and a backup/restore of representative test data.
-- [ ] Exercise a non-writable volume failure and confirm the rootless diagnostics from work package 1 identify the operator action required.
-- [ ] Record the OpenShift version, cluster type, SCC, storage class/access mode, assigned UID/GID, image digest, manifests, commands, sanitized logs, and results in the release pull request.
-
-**Fallback decision**
-
-- [ ] If no real OpenShift environment can be obtained, run a restricted Kubernetes proxy test and explicitly mark OpenShift as unvalidated and unsupported in the first release. A Kind/K3s test does not satisfy or replace the OpenShift checklist above.
-
-#### 5. Tailored SCAP image-compliance baseline
-
-**Profile discovery and tailoring**
-
-- [x] Build the scanner from the same digest-pinned UBI 9 base, pin OpenSCAP `1.3.14-1.el9_8` and ComplianceAsCode `0.1.82`, verify the release archive, and verify/record the RHEL 9 data-stream SHA-256. Retain the produced scanner image ID for every run; use a manifest digest if the tool image is later published for reuse.
-- [x] Add upstream RHEL 9 STIG-profile report-only discovery against an ownership-preserving exported image filesystem; ComplianceAsCode `0.1.82` does not contain a RHEL 9 Standard profile. Treat STIG as an analysis source rather than wholesale adoption, inventory every result, and keep evaluation errors blocking without claiming host or deployment compliance.
-- [x] Create a reviewed XCCDF tailoring profile containing only rules that are applicable to and controlled by this image. Commit a rule-rationale matrix and document every host/platform exclusion.
-- [x] Exclude kernel, boot-loader, partition, mount-layout, systemd, audit, host-networking, sysctl, SELinux-mode, and FIPS-mode controls unless the image later gains direct ownership of one. Do not use automatic remediation.
-
-**Safe CI integration**
-
-- [x] Export the stopped, already-tested image without executing it, mount the archive read-only, and extract as namespaced root into the scanner's disposable tmpfs so numeric ownership evidence is preserved.
-- [x] Configure OpenSCAP offline mode directly with `OSCAP_PROBE_ROOT` because UBI AppStream does not ship the `oscap-chroot` wrapper. Run with no Docker/Podman socket, host namespace, workflow secrets, or evaluation-time network; use a read-only scanner root, `no-new-privileges`, drop all capabilities, and add only `CHOWN`, `FOWNER`, `DAC_OVERRIDE`, and `SYS_CHROOT` for metadata preservation, restrictive-file inspection/results output, and offline probes.
-- [x] Generate and retain architecture-specific ARF XML, XCCDF XML, HTML, full JSON rule inventory, target/scanner image IDs, architecture, scanner/content versions, data-stream hash, tailoring hash, and exit code with the other image-security evidence. Independently require the evaluated rule set and scanner profile hash to match the committed tailoring.
-- [ ] Run report-only on native AMD64 and ARM64 for at least three scheduled or `main` executions. Evaluation errors fail immediately; selected-rule findings become blocking only after the baseline is stable and reviewed. A tailoring or content change restarts this count; the new tailored profile begins at 0/3.
-- [ ] Cross-check one exact image digest with `oscap-podman` on a disposable RHEL 9 host. Reconcile platform/applicability differences before enforcement; do not grant routine hosted CI root or engine access merely to match that command.
+- [ ] Qualify and record the exact RHEL release, kernel, Podman client/server,
+  OCI runtime, SELinux state, cgroup version, and native architecture baseline.
+- [ ] Define the supported ClickHouse channel, image update cadence,
+  vulnerability-response target, upgrade expectations, and end-of-support
+  policy. Keep these commitments consistent in `SUPPORT.md` and release notes.
+- [ ] Repeat the documented comparison with the matching official ClickHouse
+  image, including entrypoint behavior, ports, environment variables,
+  configured storage discovery, packages, scripts, layers, compressed and
+  unpacked size, and the consequences of starting non-root.
+- [ ] Review every SVG in [ARCHITECTURE.md](ARCHITECTURE.md) against the current
+  image and approved release boundary.
+- [ ] Keep deployment-specific topology in `clickhouse-production-stack` while
+  retaining image-specific ports, identities, storage, trust, and control
+  boundaries here.
+- [ ] Add CI checks for SVG/XML well-formedness, internal links, accessible
+  title/description elements, prohibited scripts/external resources, and
+  documented diagram-to-configuration consistency.
 
 **Exit evidence**
 
-- [ ] Retain the discovery report, final tailoring, rule-rationale/exclusion review, three stable two-architecture runs, capability inspection, and `OSCAP_PROBE_ROOT` versus `oscap-podman` comparison.
-- [ ] State precisely that the result covers selected image-filesystem controls and is not CIS/STIG certification of the host, OpenShift cluster, or production deployment.
+- [ ] A reviewer can determine exactly which cryptographic module, host/runtime
+  versions, architectures, and deployment claims are supported or excluded.
 
-#### 6. Security-control provenance, STIG analysis, and SCTM export
+### 6. Final upstream baseline, vulnerabilities, and licensing
 
-**Source acquisition and analysis**
+Perform this after packages 2 through 5 because their decisions may change
+the image.
 
-- [ ] Follow [SECURITY-CONTROLS.md](SECURITY-CONTROLS.md). Pin and hash the current DISA Database SRG, Container Platform SRG, RHEL 9 STIG, and selected active database-product STIGs. Record title, version/release, date, URL, retrieval date, SHA-256, and sunset status in `security/stig-sources.yaml`.
-- [ ] Analyze every Database SRG requirement against ClickHouse. Compare active MongoDB, PostgreSQL-distribution, Oracle Database, Oracle MySQL, Microsoft SQL Server, and any other reviewed DISA database STIGs without transferring product-specific commands or treating consensus as applicability.
-- [ ] Create `security/stig-analysis.csv` with source IDs, CCI/NIST mappings, objective, threat, applicability, ownership, implementation feasibility, conflicts, residual risk, rationale, and review metadata. Explicitly record that zero product-STIG controls were inherited before this analysis.
-- [ ] Require two-person review for every `adopt`, `not-applicable`, `unsupported`, and host/platform exclusion. Open an issue for unresolved or ClickHouse-unsupported requirements; do not silently omit them.
-
-**Implementation and user choice**
-
-- [ ] Classify adopted items as immutable image invariants, configurable ClickHouse controls, deployment controls, or organizational/inherited controls. Implement only the first two in this repository; place reusable deployment controls in `clickhouse-production-stack`.
-- [ ] For each safely configurable control, provide reviewed secure and compatibility configuration fragments with exact enable/disable steps, default, restart requirement, prerequisites, operational impact, loss of protection, and verification. Do not provide an off switch for trust-boundary invariants merely for convenience.
-- [ ] Add negative tests that prove disabled or weakened profiles are accurately reported as not implementing the associated control. Prevent entrypoint environment variables from silently overriding mounted control configuration.
-
-**SCTM-consumable artifacts and assessment**
-
-- [ ] Publish a schema-valid NIST OSCAL Component Definition as the canonical component artifact and deterministically generate `security/control-matrix.csv` for tabular SCTM import. Include NIST control/statement, CCI/STIG provenance, implementation status, responsibility, configuration, procedure, evidence, residual risk, and expiry.
-- [ ] Add `docs/CONTROL-IMPLEMENTATION.md` with per-control justification and complete examine/test/interview procedures based on NIST SP 800-53A. Every claim must identify the exact image digest, configuration profile, architecture, and evidence sensitivity.
-- [ ] Pin the OSCAL schema/toolchain, validate identifiers and links in CI, and fail on generated-artifact drift. Obtain cyber/ISSO review that the export is a component input, not a completed system SCTM, SSP, authorization, or STIG certification.
+- [ ] Select the final ClickHouse stable release/channel and review its release
+  notes and published SHA-512 files.
+- [ ] Select current compatible UBI Minimal and UBI Micro manifest-list
+  digests together and confirm both resolve for AMD64 and ARM64.
+- [ ] Rebuild both architectures from scratch and compare image size, layers,
+  packages, SBOMs, permissions, and scanner results with the prior baseline.
+  Explicitly investigate unexpected additions/removals, setuid/setgid files,
+  and world-writable paths.
+- [ ] Define and exercise the UBI-triggered rebuild process and its response
+  target so a base-image security update can be released without waiting for a
+  new ClickHouse version.
+- [ ] Triage every Trivy/Grype finding using
+  [VULNERABILITY-MANAGEMENT.md](VULNERABILITY-MANAGEMENT.md). Record advisory,
+  affected component, architecture, fix availability, reachability,
+  compensating control, owner, decision, and review expiry.
+- [ ] Resolve or explicitly triage dependency-update pull requests and scanner
+  disagreements.
+- [ ] Inspect both SPDX inventories and embedded license/notice files; complete
+  [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) and the ClickHouse/Red Hat
+  redistribution and trademark review.
+- [ ] Confirm the runtime remains non-root, capability-free,
+  package-manager-free, downloader-free, and read-only-root compatible.
+- [ ] Review workflow permissions, immutable action references, secret
+  scanning, CodeQL, and Scorecard results for the exact candidate. Confirm the
+  `SECURITY.md` contact is monitored and test the private vulnerability-report
+  path without creating a real vulnerability report.
 
 **Exit evidence**
 
-- [ ] Retain the source register, complete comparison, review record, OSCAL validation, deterministic CSV check, control tests on AMD64/ARM64, and a trial import performed by the consuming cyber team.
+- [ ] The release pull request identifies the final upstream versions/digests,
+  before/after evidence, accepted risks, license review, and reason no newer
+  reviewed input is being selected.
 
-#### 7. Cryptographic boundary, host support, and architecture review
+### 7. Exact release-candidate qualification
 
-- [ ] Adopt the current determination in [FIPS.md](FIPS.md): the upstream static ClickHouse artifact is not claimed as FIPS 140-3 validated. Record binary linkage, embedded cryptographic implementation/version, and absence or applicability of a CMVP certificate for every release.
-- [ ] Decide whether v1 excludes FIPS-required deployments or introduces a separately built and qualified artifact that exclusively uses an identified validated module in its approved mode and operational environment. Require specialist/assessor review before any FIPS wording.
-- [ ] Test permitted TLS versions and cipher/profile behavior on AMD64 and ARM64. Keep TLS 1.0/1.1 outside supported profiles, test TLS 1.2/1.3 and client compatibility, and never equate protocol negotiation with FIPS validation.
-- [ ] Qualify the exact [host/runtime support](SUPPORT.md) baseline: supported RHEL 9 minor, kernel, Podman client/server, OCI runtime, SELinux mode, cgroup version, and native architectures. Qualify an exact OpenShift 4 release separately. Label RHEL 8/10 and other OCI platforms as unqualified until their full suite passes.
-- [ ] Review every SVG in [ARCHITECTURE.md](ARCHITECTURE.md) against the release configuration and threat model. Add deployment-specific diagrams to `clickhouse-production-stack`; record ports, identities, secrets, trust anchors, storage, ingress/egress, logging, health, and control inheritance.
-- [ ] Add CI validation for SVG/XML well-formedness, internal links, accessible title/description elements, prohibited scripts/external resources, and documented diagram-to-configuration consistency checks.
+All tests in this package target one immutable candidate commit and image
+digest. Any subsequent image-affecting change returns the project to package 6
+and regenerates affected evidence.
 
-#### 8. Final candidate and signed release
+**Native and runtime behavior**
 
-- [ ] Refresh and review the UBI Minimal and Micro manifest-list digests together. Confirm both architectures resolve, rebuild from scratch, and retain the old/new digest and vulnerability comparison.
-- [ ] Confirm the selected ClickHouse release/channel and archive checksums, run both native CI jobs, and complete the current unfixed-finding triage with owner, rationale, compensating controls, and review expiry.
-- [ ] Inspect each architecture's complete SPDX inventory and embedded license files, then complete the redistribution/trademark review.
-- [ ] Rehearse the tag workflow without presenting a failed candidate as a supported release. Verify manifest variants, scans, keyless signature, SPDX attestation, provenance, downloaded evidence, and release assets.
-- [ ] Review every README and operator procedure from a clean clone, including rootless storage, TLS, OpenShift, production, backup/restore, upgrade, rollback, and offline transfer instructions.
-- [ ] Define the first release's support boundary. Workload-specific capacity numbers remain an operator responsibility unless the project publishes a named reference workload; do not imply universal production sizing.
-- [ ] Complete the changelog, obtain second-maintainer review, merge without bypassing checks, create the annotated immutable tag, watch the workflow, verify the published digest on both architectures, and announce the GHCR release with known limitations.
+- [x] CI has native AMD64 and ARM64 build/test jobs and a protected aggregate
+  gate. Existing results are development/integration evidence until rerun for
+  the final candidate.
+- [x] Rootless storage behavior, configuration-derived primary/additional
+  paths, arbitrary UIDs, initialization, persistence, negative permissions,
+  read-only roots, and capability-free operation have automated tests and
+  user procedures.
+- [ ] Retain final-candidate successful and intentional-failure logs for every
+  identity, storage, initialization, shutdown, and recovery case.
+- [ ] Run the complete suite with the approved Podman host/runtime baseline and
+  separately retain native Docker-based GitHub Actions evidence.
 
-### Image behavior and compatibility
+**TLS and disconnected behavior**
 
-- [ ] Run the complete smoke suite on the final ClickHouse and UBI digests.
-- [ ] Run the complete smoke suite with the supported Podman baseline and record both client and server versions; retain the native Docker-based GitHub Actions results as separate runtime evidence.
-- [ ] Validate native `linux/amd64` and `linux/arm64` images, not only an emulated multi-platform build.
-- [ ] Exercise the image on an OpenShift 4 cluster with an arbitrary UID, restricted security context constraints, a read-only root filesystem, and a persistent volume.
-- [ ] Verify first-start initialization, password files, mounted configuration, restart persistence, graceful shutdown, and backup/restore instructions against the release candidate.
-- [ ] Document tested resource limits, health-check behavior, TLS configuration boundaries, and supported upgrade paths.
-- [ ] Confirm the runtime remains non-root, capability-free, and free of package managers and download clients.
+- [x] Native CI generates an ephemeral CA chain and tests HTTPS/native TLS,
+  hostname and trust failures, clear-text rejection, key/chain permissions,
+  outbound public/private trust, rotation, rollback, and network isolation.
+- [x] [TLS-REHEARSAL.md](TLS-REHEARSAL.md) documents connected and disconnected
+  operator procedures without committing generated key material.
+- [ ] Retain final-candidate sanitized subjects, issuers, SANs, serials,
+  expiries, isolation proof, positive/negative results, rotation, rollback,
+  and confirmation that no secret entered Git or public evidence.
+- [ ] If a representative disconnected boundary is available, execute the
+  operator rehearsal there. Otherwise record the limitation required by the
+  working support boundary.
 
-### Supply chain and security
+**OpenShift decision gate**
 
-- [ ] Resolve or explicitly triage all dependency-update pull requests before tagging.
-- [ ] Obtain clean Trivy and Grype gates for fixed high and critical vulnerabilities on the final image digest.
-- [ ] Review scanner disagreements and record any accepted finding in the release notes with its rationale and compensating control.
-- [ ] Inspect the Syft SPDX JSON for package completeness and validate that its image source matches the release digest.
-- [ ] Verify the BuildKit SBOM and provenance attestations and the keyless Cosign signature against the published digest.
-- [ ] Review workflow permissions, immutable action pins, secret-scanning alerts, and CodeQL/Scorecard findings.
-- [ ] Test private vulnerability reporting and confirm that `SECURITY.md` names a monitored response path.
-- [ ] Complete license, redistribution, trademark, and upstream-notice review for ClickHouse and Red Hat UBI content.
-- [ ] Complete an image threat model covering build inputs, CI trust, registry/release publication, runtime identity, storage, ingress/egress TLS, secrets, and the boundary with `clickhouse-production-stack`.
-- [ ] Define and exercise a UBI rebuild cadence and response SLA for exploitable critical/high findings, including unfixed findings that later receive a vendor fix.
-- [ ] Compare final SBOM and filesystem/package inventories against the reviewed baseline and investigate unexpected additions, removals, setuid/setgid files, or world-writable paths.
-- [ ] Exercise password/key/certificate rotation and failure paths while confirming logs and retained CI evidence do not expose secret material.
+- [x] Restricted-SCC fixtures, policy tests, arbitrary-UID guidance, TLS/PVC
+  resources, diagnostics, and cleanup procedures exist in
+  [OPENSHIFT-TESTING.md](OPENSHIFT-TESTING.md).
+- [ ] If an OpenShift environment is available, qualify an exact release under
+  the default restricted SCC without root, `anyuid`, host paths, added
+  capabilities, or privileged mode. Exercise initialization, TLS, probes,
+  graceful deletion, PVC persistence, backup/restore, and failure diagnostics.
+- [ ] If OpenShift is unavailable, run the restricted Kubernetes proxy test and
+  explicitly mark OpenShift preview/unqualified. A proxy test must not be
+  described as OpenShift qualification.
 
-### Release mechanics and documentation
+**SCAP stabilization**
 
-- [ ] Choose and validate the first tag according to [VERSION.md](VERSION.md).
-- [ ] Rehearse the release workflow in a non-production package or with a disposable pre-release tag, then remove test artifacts through the GitHub UI.
-- [ ] Confirm the GHCR package is public and its description, source, documentation, and license metadata point to this repository.
-- [ ] Confirm release assets include `image.spdx.json`, `image.sigstore.json`, and `image.intoto.jsonl`.
-- [ ] Replace the `Unreleased` changelog section with the release version and date, then add a new empty `Unreleased` section.
-- [ ] Review the README quick start, operational notes, scanner behavior, artifact verification, and all documentation links from a clean clone.
-- [ ] Define the supported ClickHouse channel, packaging revision policy, update cadence, and end-of-support expectations.
-- [ ] Require a second maintainer to review the final release pull request even though GitHub does not enforce it yet.
+- [x] The pinned OpenSCAP/ComplianceAsCode tool, isolated exported-filesystem
+  scan, 36-rule tailored profile, rule rationale, hashes, complete evidence,
+  and operational-error gate are implemented on both architectures.
+- [ ] Evaluate the exact final candidate at least three independent times on
+  native AMD64 and ARM64 using `main`, schedule, or intentional manual
+  dispatch. Record image/profile/content hashes and require identical selected
+  rule inventories; do not manufacture source changes merely to trigger runs.
+- [ ] Cross-check the exact digest with `oscap-podman` on a disposable RHEL 9
+  host. If unavailable, keep selected findings report-only and record that
+  enforcement qualification remains incomplete.
+- [ ] After the comparison and three stable runs, decide in a reviewed pull
+  request whether selected-rule failures become release-blocking.
 
-## OpenSSF readiness
+**Production procedure review**
 
-- [ ] Register the project for the [OpenSSF Best Practices Badge](https://www.bestpractices.dev/) when the public project metadata is complete.
-- [ ] Merge routine work through reviewed pull requests so CI-Tests and Code-Review have genuine repository evidence.
-- [ ] Re-run Scorecard after the release and triage every result according to [OPENSSF_SCORECARD.md](OPENSSF_SCORECARD.md).
-- [ ] Verify the first release is recognized as signed after the public Scorecard data refreshes.
-- [ ] Review whether any meaningful fuzz target now exists; do not add token fuzzing solely for a score.
+- [ ] Execute [PRODUCTION.md](PRODUCTION.md) against the candidate, including
+  resource bounds, storage, health, graceful shutdown, backup/restore,
+  upgrade, rollback, and recovery.
+- [ ] Review the README and every operator procedure from a clean clone and
+  validate all internal links and commands.
 
-## Deliberately deferred controls
+**Exit evidence**
 
-- **Enforced pull-request approvals:** a second collaborator has been added, but required approvals and Code Owner approval remain disabled at the maintainer's request. The active ruleset requires a pull request, resolved threads, and the `lint` and `image` checks and prevents deletion and force pushes. Revisit approval enforcement after the first release; do not enable it as part of unrelated automation.
-- **Two independent approvals:** this requires at least three regularly available maintainers to avoid deadlocking a contributor's own pull request. Reassess when the contributor pool supports it.
-- **Fuzzing:** there is currently no credible parser or executable fuzz target owned by this packaging repository.
+- [ ] [QUALIFICATION.md](QUALIFICATION.md) identifies the exact candidate and
+  contains every result, external limitation, support consequence, and retained
+  artifact needed for the release decision.
 
-## First-release runbook
+### 8. Release rehearsal and signed publication
 
-1. Open a release pull request that completes every blocker above and contains the final changelog entry.
-2. Record the final CI, CodeQL, and Scorecard workflow URLs in the pull request.
-3. Obtain human review from the second collaborator and merge without bypassing checks.
-4. Create and push the annotated release tag from the reviewed `main` commit.
-5. Watch the release workflow through build, both scanners, signing, and GitHub release creation.
-6. Pull the published digest on both architectures, run a query, and verify the signature and attached evidence.
-7. Publish release notes that call out known limitations and accepted security findings, if any.
+**Rehearsal**
+
+- [ ] Choose the first tag using [VERSION.md](VERSION.md) and validate it with
+  `scripts/validate-release-tag.sh`.
+- [ ] Exercise the release workflow with a disposable non-production package or
+  explicitly marked prerelease path. Do not present a failed rehearsal as a
+  supported release.
+- [ ] Verify manifest variants, vulnerability gates, keyless signature, SPDX
+  attestation, provenance, downloaded verification, and expected release
+  assets. Remove disposable artifacts through the approved GitHub process.
+- [ ] Confirm the GHCR package will be public and its description, source,
+  documentation, and license metadata are correct.
+
+**Publication**
+
+- [ ] Convert `Unreleased` in [CHANGELOG.md](../CHANGELOG.md) into the selected
+  version/date and add a new empty `Unreleased` section.
+- [ ] Open the final release pull request containing the evidence ledger,
+  support boundary, known limitations, accepted security findings, and final
+  changelog.
+- [ ] Obtain second-maintainer review and merge without bypassing protected
+  checks.
+- [ ] Create and push the annotated immutable tag from the reviewed `main`
+  commit.
+- [ ] Watch the workflow through publication, scanning, signing, attestation,
+  and GitHub Release creation.
+- [ ] Pull the published digest on both architectures, run a query, and verify
+  the signature, provenance, SBOM, manifest, labels, and release assets.
+- [ ] Refresh OpenSSF Scorecard after publication and confirm it recognizes the
+  signed release and associated supply-chain metadata; record any lag or
+  remaining finding without delaying verification of the release itself.
+- [ ] Publish release notes that state the support boundary, external
+  limitations, and accepted findings without unsupported security claims.
+
+**Exit evidence**
+
+- [ ] The public GHCR digest, GitHub Release, signature bundle,
+  `image.spdx.json`, and `image.intoto.jsonl` all identify the same reviewed
+  release.
+
+## External-environment decisions
+
+Lack of an external environment must produce a documented support decision,
+not an implied pass and not an indefinite hidden blocker.
+
+| Environment | Preferred evidence | Release fallback |
+| --- | --- | --- |
+| OpenShift | Exact-version restricted-SCC qualification | Restricted Kubernetes proxy plus explicit OpenShift preview/unqualified status |
+| Disconnected security boundary | Full operator rehearsal inside the boundary | Automated isolation evidence plus explicit absence of representative-boundary qualification |
+| Disposable RHEL 9 SCAP host | `OSCAP_PROBE_ROOT` versus `oscap-podman` comparison for one digest | Keep tailored SCAP report-only and document incomplete enforcement qualification |
+| Cyber-team tooling | Trial import of OSCAL and CSV | Publish schema-valid artifacts but record trial import as pending; do not claim SCTM integration |
+
+## Existing foundation
+
+The following capabilities are implemented and remain subject to final-candidate
+reruns rather than reimplementation:
+
+- non-root UID `101:0` and arbitrary-UID operation without an entrypoint root
+  phase or volume `chown`;
+- configuration-derived primary and additional storage paths with actionable
+  permission failures;
+- read-only-root, dropped-capability, initialization, authentication,
+  persistence, and graceful-shutdown smoke coverage;
+- native AMD64 and ARM64 CI with architecture-specific images, caches, SBOMs,
+  vulnerability evidence, and aggregate branch protection;
+- connected/disconnected TLS automation and complete operator procedures;
+- OpenShift restricted-SCC fixtures, policy tests, and operator instructions;
+- isolated tailored SCAP evaluation with 36 currently passing image-owned
+  rules and documented exclusions;
+- Trivy, Syft, Grype, CodeQL, Zizmor, OpenSSF Scorecard, checksum verification,
+  immutable action references, BuildKit provenance, and keyless release signing;
+- Podman-first user documentation, third-party license boundaries, official
+  ClickHouse image comparison, and release versioning rules.
+
+## Deliberately deferred after v1
+
+- Docker Hub publication unless real consumers require it.
+- Paid security services unless they add distinct, actionable coverage.
+- Required approving-review enforcement until the regularly available
+  maintainer pool can satisfy it without deadlocking pull requests. The final
+  release still requires an actual second-maintainer review.
+- Fuzzing until the repository owns a credible parser or executable fuzz
+  target.
+- Recurring OpenShift automation until a manual qualification establishes a
+  safe credential and cleanup model.
+- Reproducible-build variance analysis across hosted runners.
 
 ## After the first release
 
-- [ ] Automate a recurring rebuild policy for unchanged ClickHouse versions when UBI security updates arrive.
-- [ ] Automate a recurring end-to-end OpenShift test with short-lived credentials after the manual first-release qualification establishes a safe baseline.
-- [ ] Evaluate reproducible-build variance across GitHub-hosted runners.
-- [ ] Add package-consumer and upgrade tests for each supported ClickHouse update path.
-- [ ] Review artifact retention after real usage and adjust only with a documented storage/forensics rationale.
+- [ ] Automate rebuild proposals when UBI security updates arrive without a
+  ClickHouse version change.
+- [ ] Add recurring OpenShift qualification with short-lived credentials after
+  the manual baseline exists.
+- [ ] Add consumer and upgrade tests for each supported ClickHouse update path.
+- [ ] Review evidence-retention periods using actual release and incident
+  response experience.
+- [ ] Re-run OpenSSF Scorecard and Best Practices review and address findings
+  based on security value rather than badge appearance alone.
