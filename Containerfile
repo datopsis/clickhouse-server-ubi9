@@ -74,8 +74,8 @@ ARG CLICKHOUSE_VERSION="26.8.2.7"
 
 LABEL org.opencontainers.image.title="ClickHouse Server on Red Hat UBI 9" \
       org.opencontainers.image.description="A minimal, non-root ClickHouse Server image built on Red Hat UBI 9 Micro" \
-      org.opencontainers.image.source="https://github.com/datopsis/clickhouse-server-ubi9" \
-      org.opencontainers.image.documentation="https://github.com/datopsis/clickhouse-server-ubi9#readme" \
+      org.opencontainers.image.source="https://github.com/datopsis/clickhouse-ubi" \
+      org.opencontainers.image.documentation="https://github.com/datopsis/clickhouse-ubi#readme" \
       org.opencontainers.image.licenses="Apache-2.0" \
       org.opencontainers.image.vendor="Datopsis" \
       org.opencontainers.image.version="${CLICKHOUSE_VERSION}"

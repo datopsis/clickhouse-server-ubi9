@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Containerfile
-    image: ghcr.io/datopsis/clickhouse-server-ubi9:local
+    image: ghcr.io/datopsis/clickhouse-ubi:local
     environment:
       CLICKHOUSE_PASSWORD: change-me
     ports:

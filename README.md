@@ -1,10 +1,10 @@
 # ClickHouse Server on Red Hat UBI 9
 
-[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/datopsis/clickhouse-server-ubi9/badge)](https://securityscorecards.dev/viewer/?uri=github.com/datopsis/clickhouse-server-ubi9)
-[![CI](https://github.com/datopsis/clickhouse-server-ubi9/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/datopsis/clickhouse-server-ubi9/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/datopsis/clickhouse-server-ubi9/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/datopsis/clickhouse-server-ubi9/actions/workflows/codeql.yml)
-[![Latest release](https://img.shields.io/github/v/release/datopsis/clickhouse-server-ubi9?display_name=tag&sort=semver)](https://github.com/datopsis/clickhouse-server-ubi9/releases)
-[![License](https://img.shields.io/github/license/datopsis/clickhouse-server-ubi9)](LICENSE)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/datopsis/clickhouse-ubi/badge)](https://securityscorecards.dev/viewer/?uri=github.com/datopsis/clickhouse-ubi)
+[![CI](https://github.com/datopsis/clickhouse-ubi/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/datopsis/clickhouse-ubi/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/datopsis/clickhouse-ubi/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/datopsis/clickhouse-ubi/actions/workflows/codeql.yml)
+[![Latest release](https://img.shields.io/github/v/release/datopsis/clickhouse-ubi?display_name=tag&sort=semver)](https://github.com/datopsis/clickhouse-ubi/releases)
+[![License](https://img.shields.io/github/license/datopsis/clickhouse-ubi)](LICENSE)
 [![Base: Red Hat UBI 9](https://img.shields.io/badge/base-Red%20Hat%20UBI%209-EE0000?logo=redhat&logoColor=white)](https://developers.redhat.com/products/rhel/ubi)
 [![SBOM: SPDX JSON](https://img.shields.io/badge/SBOM-SPDX%20JSON-2F80ED)](docs/CI.md#artifacts-and-retention)
 
@@ -48,7 +48,7 @@ podman run --detach \
   --cap-drop ALL \
   --security-opt no-new-privileges \
   --volume clickhouse-data:/var/lib/clickhouse \
-  ghcr.io/datopsis/clickhouse-server-ubi9:<release-tag>
+  ghcr.io/datopsis/clickhouse-ubi:<release-tag>
 ```
 
 Then query it with a ClickHouse client:
@@ -104,9 +104,9 @@ Podman is the primary documented local runtime. Podman uses OCI format by defaul
 
 ```console
 podman build --format docker --file Containerfile \
-  --tag ghcr.io/datopsis/clickhouse-server-ubi9:test .
+  --tag ghcr.io/datopsis/clickhouse-ubi:test .
 CONTAINER_RUNTIME=podman \
-  IMAGE=ghcr.io/datopsis/clickhouse-server-ubi9:test \
+  IMAGE=ghcr.io/datopsis/clickhouse-ubi:test \
   bash tests/smoke.sh
 ```
 
@@ -128,14 +128,14 @@ Verify a release with GitHub as the keyless identity provider:
 
 ```console
 cosign verify \
-  --certificate-identity-regexp='https://github.com/datopsis/clickhouse-server-ubi9/.github/workflows/release.yml@refs/tags/.*' \
+  --certificate-identity-regexp='https://github.com/datopsis/clickhouse-ubi/.github/workflows/release.yml@refs/tags/.*' \
   --certificate-oidc-issuer='https://token.actions.githubusercontent.com' \
-  ghcr.io/datopsis/clickhouse-server-ubi9@sha256:<digest>
+  ghcr.io/datopsis/clickhouse-ubi@sha256:<digest>
 
 cosign verify-attestation --type spdxjson \
-  --certificate-identity-regexp='https://github.com/datopsis/clickhouse-server-ubi9/.github/workflows/release.yml@refs/tags/.*' \
+  --certificate-identity-regexp='https://github.com/datopsis/clickhouse-ubi/.github/workflows/release.yml@refs/tags/.*' \
   --certificate-oidc-issuer='https://token.actions.githubusercontent.com' \
-  ghcr.io/datopsis/clickhouse-server-ubi9@sha256:<digest>
+  ghcr.io/datopsis/clickhouse-ubi@sha256:<digest>
 ```
 
 ## Operational notes

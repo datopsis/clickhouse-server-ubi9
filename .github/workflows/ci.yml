@@ -76,8 +76,8 @@ jobs:
       contents: read
       security-events: write
     env:
-      TEST_IMAGE: ghcr.io/datopsis/clickhouse-server-ubi9:test-${{ matrix.architecture }}
-      SBOM_FILE: clickhouse-server-ubi9-${{ matrix.architecture }}.spdx.json
+      TEST_IMAGE: ghcr.io/datopsis/clickhouse-ubi:test-${{ matrix.architecture }}
+      SBOM_FILE: clickhouse-ubi-${{ matrix.architecture }}.spdx.json
       GRYPE_SARIF: grype-${{ matrix.architecture }}.sarif
       GRYPE_ALL: grype-all-${{ matrix.architecture }}.json
       SCAP_SCANNER_IMAGE: localhost/datopsis-openscap:0.1.82-${{ matrix.architecture }}

@@ -19,9 +19,9 @@ Podman's default build format is OCI. Use Docker manifest format for local build
 
 ```console
 podman build --format docker --file Containerfile \
-  --tag ghcr.io/datopsis/clickhouse-server-ubi9:test .
+  --tag ghcr.io/datopsis/clickhouse-ubi:test .
 CONTAINER_RUNTIME=podman \
-  IMAGE=ghcr.io/datopsis/clickhouse-server-ubi9:test \
+  IMAGE=ghcr.io/datopsis/clickhouse-ubi:test \
   bash tests/smoke.sh
 ```
 
@@ -38,7 +38,7 @@ podman run --detach --name clickhouse \
   --read-only --tmpfs /tmp:size=256m,mode=1777 \
   --cap-drop ALL --security-opt no-new-privileges \
   --volume clickhouse-data:/var/lib/clickhouse \
-  ghcr.io/datopsis/clickhouse-server-ubi9@sha256:<digest>
+  ghcr.io/datopsis/clickhouse-ubi@sha256:<digest>
 ```
 
 For a Linux bind mount, use `podman unshare chown 101:0 <path>` to express the image identity through the rootless user namespace. Do not assume that container UID `101` must appear as host UID `101`. Podman's `:U` volume option is an alternative, but it recursively changes the host tree and can be slow. Follow [rootless storage and permissions](ROOTLESS.md) for complete named-volume, bind-mount, SELinux, additional-disk, and OpenShift procedures.

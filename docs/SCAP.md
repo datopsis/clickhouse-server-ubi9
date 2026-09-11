@@ -120,7 +120,7 @@ certification.
 
 ## Initial native discovery result
 
-[GitHub Actions run 34151979084](https://github.com/datopsis/clickhouse-server-ubi9/actions/runs/34151979084)
+[GitHub Actions run 34151979084](https://github.com/datopsis/clickhouse-ubi/actions/runs/34151979084)
 qualified commit `c099690` on both native architectures. The retained AMD64
 and ARM64 inventories contained the same 1,540 rule IDs and results:
 
@@ -178,7 +178,7 @@ in-place package-manager rule.
 
 ### Initial tailored qualification
 
-[GitHub Actions run 34162299349](https://github.com/datopsis/clickhouse-server-ubi9/actions/runs/34162299349)
+[GitHub Actions run 34162299349](https://github.com/datopsis/clickhouse-ubi/actions/runs/34162299349)
 evaluated the profile on native AMD64 and ARM64 during pull-request review.
 Each architecture produced exactly 36 `pass` and 1,504 `notselected` results,
 OpenSCAP exit code 0, no operational error, and the same complete rule/result
@@ -244,11 +244,11 @@ filesystem/chroot capabilities only inside Podman's user namespace; it does
 not require host root or start the ClickHouse image as root.
 
 ```console
-git clone https://github.com/datopsis/clickhouse-server-ubi9.git
-cd clickhouse-server-ubi9
+git clone https://github.com/datopsis/clickhouse-ubi.git
+cd clickhouse-ubi
 
 ARCHITECTURE=amd64  # use arm64 on an ARM64 host
-IMAGE="localhost/clickhouse-server-ubi9:test-${ARCHITECTURE}"
+IMAGE="localhost/clickhouse-ubi:test-${ARCHITECTURE}"
 SCANNER_IMAGE="localhost/datopsis-openscap:0.1.82-${ARCHITECTURE}"
 
 podman build --format docker --platform "linux/${ARCHITECTURE}" \

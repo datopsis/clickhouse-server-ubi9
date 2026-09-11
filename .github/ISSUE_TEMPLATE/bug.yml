@@ -14,7 +14,7 @@ body:
     attributes:
       label: Image tag and digest
       description: Include both when available; do not report only `latest`.
-      placeholder: ghcr.io/datopsis/clickhouse-server-ubi9:v...@sha256:...
+      placeholder: ghcr.io/datopsis/clickhouse-ubi:v...@sha256:...
     validations:
       required: true
   - type: input

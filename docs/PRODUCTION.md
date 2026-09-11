@@ -7,7 +7,7 @@ Production readiness is a property of a tested deployment, not an image label. C
 - Decide whether one node is sufficient. A single node has no database-service high availability; use ClickHouse replication and Keeper only after designing failure domains, quorum, inter-server authentication, and recovery.
 - Use a ClickHouse LTS line when long maintenance windows matter, and document the supported UBI/ClickHouse combinations and end-of-support date.
 - Assign owners for the image, database, storage, certificates, backups, vulnerability triage, and incident response.
-- Pin `ghcr.io/datopsis/clickhouse-server-ubi9@sha256:<digest>`. Verify the release signature, SBOM, and provenance before promotion. Never deploy a failed or unsigned candidate tag.
+- Pin `ghcr.io/datopsis/clickhouse-ubi@sha256:<digest>`. Verify the release signature, SBOM, and provenance before promotion. Never deploy a failed or unsigned candidate tag.
 
 ## 2. Prepare identity and secrets
 

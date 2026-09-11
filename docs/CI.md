@@ -84,7 +84,7 @@ Trivy and Grype deliberately overlap. They use different databases and matching 
 
 | Artifact | Location | Retention or lifecycle | Purpose |
 | --- | --- | --- | --- |
-| `clickhouse-server-ubi9-<architecture>.spdx.json` | CI artifact `image-security-<commit>-<architecture>` | 14 days | Package inventory for the exact native AMD64 or ARM64 test image. |
+| `clickhouse-ubi-<architecture>.spdx.json` | CI artifact `image-security-<commit>-<architecture>` | 14 days | Package inventory for the exact native AMD64 or ARM64 test image. |
 | `grype-<architecture>.sarif` | Same architecture-specific CI artifact and GitHub code scanning on non-PR runs | 14 days for the downloadable artifact | Machine-readable findings and architecture-specific review evidence. |
 | `grype-all-<architecture>.json` | Architecture-specific CI artifact | 14 days | Complete point-in-time inventory including unfixed Low and Medium matches for human triage. The release workflow separately retains `grype-all.json` for 30 days. |
 | `scap-results-<architecture>/` | Architecture-specific CI artifact | 14 days | Tailored ARF/XCCDF/HTML, full JSON rule inventory, exit code, data-stream and tailoring hashes, scanner version, and RPM versions for the exact target/scanner image IDs. |
@@ -106,11 +106,11 @@ ARCHITECTURE=amd64
 MACHINE=x86_64
 test "$(uname -m)" = "${MACHINE}"
 podman build --format docker --platform "linux/${ARCHITECTURE}" \
-  --file Containerfile --tag "clickhouse-server-ubi9:test-${ARCHITECTURE}" .
+  --file Containerfile --tag "clickhouse-ubi:test-${ARCHITECTURE}" .
 test "$(podman image inspect --format '{{.Architecture}}' \
-  "clickhouse-server-ubi9:test-${ARCHITECTURE}")" = "${ARCHITECTURE}"
+  "clickhouse-ubi:test-${ARCHITECTURE}")" = "${ARCHITECTURE}"
 CONTAINER_RUNTIME=podman \
-  IMAGE="clickhouse-server-ubi9:test-${ARCHITECTURE}" bash tests/smoke.sh
+  IMAGE="clickhouse-ubi:test-${ARCHITECTURE}" bash tests/smoke.sh
 ```
 
 Build and run the isolated tailored SCAP scanner with the Podman procedure in
@@ -123,7 +123,7 @@ For the scanner examples below, keep using the architecture-specific image name:
 
 ```console
 ARCHITECTURE=amd64
-IMAGE="clickhouse-server-ubi9:test-${ARCHITECTURE}"
+IMAGE="clickhouse-ubi:test-${ARCHITECTURE}"
 ```
 
 With Trivy, Syft 1.51.1, and Grype 0.118.0 installed from their official release instructions:
@@ -131,13 +131,13 @@ With Trivy, Syft 1.51.1, and Grype 0.118.0 installed from their official release
 ```console
 trivy config --severity HIGH,CRITICAL --exit-code 1 .
 trivy image --ignore-unfixed --severity HIGH,CRITICAL --exit-code 1 "${IMAGE}"
-syft "${IMAGE}" --output "spdx-json=clickhouse-server-ubi9-${ARCHITECTURE}.spdx.json"
+syft "${IMAGE}" --output "spdx-json=clickhouse-ubi-${ARCHITECTURE}.spdx.json"
 python scripts/augment-spdx.py \
-  --input "clickhouse-server-ubi9-${ARCHITECTURE}.spdx.json" \
-  --output "clickhouse-server-ubi9-${ARCHITECTURE}.spdx.json"
-grype "sbom:clickhouse-server-ubi9-${ARCHITECTURE}.spdx.json" \
+  --input "clickhouse-ubi-${ARCHITECTURE}.spdx.json" \
+  --output "clickhouse-ubi-${ARCHITECTURE}.spdx.json"
+grype "sbom:clickhouse-ubi-${ARCHITECTURE}.spdx.json" \
   --only-fixed --fail-on high --output table
-grype "sbom:clickhouse-server-ubi9-${ARCHITECTURE}.spdx.json" \
+grype "sbom:clickhouse-ubi-${ARCHITECTURE}.spdx.json" \
   --fail-on critical --output json > "grype-all-${ARCHITECTURE}.json"
 ```
 
