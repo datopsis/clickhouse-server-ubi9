@@ -31,7 +31,7 @@ podman run --detach --name clickhouse \
   --cap-drop ALL --security-opt no-new-privileges \
   --volume ./storage.xml:/etc/clickhouse-server/config.d/storage.xml:ro,Z \
   --volume ./clickhouse-storage/data:/data/clickhouse:Z \
-  ghcr.io/datopsis/clickhouse-server-ubi9@sha256:<digest>
+  ghcr.io/datopsis/clickhouse-ubi@sha256:<digest>
 ```
 
 This remains runtime-selectable container configuration: no derived image is required. The difference is that the value is expressed in ClickHouse XML rather than an environment variable, preventing the entrypoint and server from using conflicting locations. Deployment automation may render the XML or ConfigMap before creating the container, but the resulting `<path>` and mounted volume must agree.
@@ -58,7 +58,7 @@ podman run --detach --name clickhouse \
   --read-only --tmpfs /tmp:size=256m,mode=1777 \
   --cap-drop ALL --security-opt no-new-privileges \
   --volume clickhouse-data:/var/lib/clickhouse \
-  ghcr.io/datopsis/clickhouse-server-ubi9@sha256:<digest>
+  ghcr.io/datopsis/clickhouse-ubi@sha256:<digest>
 ```
 
 The `/tmp` mount is required with a read-only root filesystem. The entrypoint writes its generated users configuration under `/tmp/clickhouse-entrypoint`; ClickHouse table data remains on the persistent configured data path.
@@ -76,7 +76,7 @@ podman run --detach --name clickhouse \
   --read-only --tmpfs /tmp:size=256m,mode=1777 \
   --cap-drop ALL --security-opt no-new-privileges \
   --volume ./clickhouse-data:/var/lib/clickhouse:Z \
-  ghcr.io/datopsis/clickhouse-server-ubi9@sha256:<digest>
+  ghcr.io/datopsis/clickhouse-ubi@sha256:<digest>
 ```
 
 The `:Z` option gives a private SELinux label. Coordinate labeling with the host administrator when the same content must be shared; do not disable SELinux to work around a denial. Podman's `:U` option can perform the mapped recursive ownership change automatically, but it modifies the host tree and can delay startup, so this guide uses the explicit `podman unshare` preparation instead.
@@ -144,7 +144,7 @@ podman run --detach --name clickhouse \
   --volume ./clickhouse-storage/tmp:/data/clickhouse-tmp:Z \
   --volume ./clickhouse-storage/user-files:/data/user-files:Z \
   --volume ./clickhouse-storage/format-schemas:/data/format-schemas:Z \
-  ghcr.io/datopsis/clickhouse-server-ubi9@sha256:<digest>
+  ghcr.io/datopsis/clickhouse-ubi@sha256:<digest>
 ```
 
 At startup the entrypoint reads the effective `path`, `tmp_path`, `user_files_path`, and `format_schema_path`. Relative auxiliary paths are resolved below the primary data path. The primary `<path>` must be absolute so its persistent-storage boundary is unambiguous.
@@ -182,7 +182,7 @@ check the container identity, mount flags, ownership, mode, ACL, SELinux label, 
 ```console
 podman inspect clickhouse --format '{{.Config.User}} {{json .Mounts}}'
 podman run --rm --entrypoint id \
-  ghcr.io/datopsis/clickhouse-server-ubi9@sha256:<digest>
+  ghcr.io/datopsis/clickhouse-ubi@sha256:<digest>
 namei -l ./clickhouse-data
 getfacl ./clickhouse-data
 ls -ldZ ./clickhouse-data

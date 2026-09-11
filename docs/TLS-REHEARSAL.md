@@ -10,7 +10,7 @@ Never place a private key, CSR containing private material, CA signing key, pass
 
 ```console
 CONTAINER_RUNTIME=podman \
-  IMAGE=ghcr.io/datopsis/clickhouse-server-ubi9:test \
+  IMAGE=ghcr.io/datopsis/clickhouse-ubi:test \
   bash tests/tls-rehearsal.sh
 ```
 
@@ -45,7 +45,7 @@ in the native AMD64 or ARM64 GitHub Actions jobs.
 Record these values in the release-candidate evidence before creating keys:
 
 ```console
-IMAGE=ghcr.io/datopsis/clickhouse-server-ubi9@sha256:<digest>
+IMAGE=ghcr.io/datopsis/clickhouse-ubi@sha256:<digest>
 SERVER_DNS=clickhouse.example.internal
 HTTPS_PORT=8443
 NATIVE_TLS_PORT=9440
@@ -61,11 +61,11 @@ On an approved connected staging host, verify and export the immutable release:
 podman pull "${IMAGE}"
 podman image inspect "${IMAGE}" --format '{{.Digest}} {{.Architecture}}'
 cosign verify \
-  --certificate-identity-regexp='https://github.com/datopsis/clickhouse-server-ubi9/.github/workflows/release.yml@refs/tags/.*' \
+  --certificate-identity-regexp='https://github.com/datopsis/clickhouse-ubi/.github/workflows/release.yml@refs/tags/.*' \
   --certificate-oidc-issuer='https://token.actions.githubusercontent.com' \
   "${IMAGE}"
 podman save --format oci-archive \
-  --output clickhouse-server-ubi9.oci "${IMAGE}"
+  --output clickhouse-ubi.oci "${IMAGE}"
 ```
 
 Download the release's `image.spdx.json`, `image.sigstore.json`, and `image.intoto.jsonl`. Export only the public CA roots/intermediates authorized inside the disconnected network. Include offline installers or archives for Podman, OpenSSL, `cosign`, ClickHouse clients, and approved scanner databases when those tools are not already managed inside the boundary.
@@ -73,7 +73,7 @@ Download the release's `image.spdx.json`, `image.sigstore.json`, and `image.into
 Create an inventory and hashes:
 
 ```console
-sha256sum clickhouse-server-ubi9.oci \
+sha256sum clickhouse-ubi.oci \
   image.spdx.json image.sigstore.json image.intoto.jsonl \
   authorized-ca-bundle.pem > SHA256SUMS
 sha256sum --check SHA256SUMS
@@ -87,7 +87,7 @@ Copy the transfer set to a controlled staging directory, make it read-only after
 
 ```console
 sha256sum --check SHA256SUMS
-podman load --input clickhouse-server-ubi9.oci
+podman load --input clickhouse-ubi.oci
 podman image inspect "${IMAGE}" --format '{{.Digest}} {{.Architecture}}'
 cosign verify --offline \
   --bundle image.sigstore.json \

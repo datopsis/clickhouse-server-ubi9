@@ -68,7 +68,7 @@ Run the remaining commands in Bash or Git Bash from the repository root:
 
 ```console
 export PROJECT=clickhouse-qualification
-export IMAGE_REF='ghcr.io/datopsis/clickhouse-server-ubi9@sha256:<64-hex-digest>'
+export IMAGE_REF='ghcr.io/datopsis/clickhouse-ubi@sha256:<64-hex-digest>'
 export EVIDENCE_DIR="openshift-evidence-$(date -u +%Y%m%dT%H%M%SZ)"
 export SECRET_DIR="$(mktemp -d)"
 umask 077

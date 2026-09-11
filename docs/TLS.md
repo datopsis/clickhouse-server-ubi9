@@ -111,7 +111,7 @@ podman run --detach --name clickhouse \
   --volume ./tls.xml:/etc/clickhouse-server/config.d/tls.xml:ro,Z \
   --volume ./tls.crt:/etc/clickhouse-server/certs/tls.crt:ro,Z \
   --volume ./tls.key:/etc/clickhouse-server/certs/tls.key:ro,Z \
-  ghcr.io/datopsis/clickhouse-server-ubi9@sha256:<digest>
+  ghcr.io/datopsis/clickhouse-ubi@sha256:<digest>
 ```
 
 `EXPOSE` is image metadata, not a firewall; publishing `8443` and `9440` works even though the image metadata lists the upstream defaults. The example removes ports `8123` and `9000`. Do not publish those clear-text ports when TLS is mandatory. Port `9009` is inter-server HTTP and must remain private; clustered deployments should separately configure `interserver_https_port` and credentials.
@@ -191,7 +191,7 @@ This configures the ClickHouse/Poco TLS client with strict validation. Individua
 An alternative is a derived image with the private CA added to the RHEL trust store:
 
 ```dockerfile
-FROM ghcr.io/datopsis/clickhouse-server-ubi9@sha256:<verified-digest>
+FROM ghcr.io/datopsis/clickhouse-ubi@sha256:<verified-digest>
 USER 0
 COPY organization-root-ca.pem /etc/pki/ca-trust/source/anchors/
 RUN update-ca-trust

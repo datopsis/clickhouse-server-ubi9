@@ -17,7 +17,7 @@ The separate `CodeQL` workflow performs genuine static analysis of this reposito
 
 ## Where to view current results
 
-The current public score and per-check details are in the [OpenSSF Scorecard viewer](https://securityscorecards.dev/viewer/?uri=github.com/datopsis/clickhouse-server-ubi9). The [OpenSSF Scorecard workflow history](https://github.com/datopsis/clickhouse-server-ubi9/actions/workflows/scorecard.yml) shows each run and exposes its downloadable SARIF artifact for five days. Uploaded findings are also available under the repository's **Security > Code scanning** page to users with the required GitHub access.
+The current public score and per-check details are in the [OpenSSF Scorecard viewer](https://securityscorecards.dev/viewer/?uri=github.com/datopsis/clickhouse-ubi). The [OpenSSF Scorecard workflow history](https://github.com/datopsis/clickhouse-ubi/actions/workflows/scorecard.yml) shows each run and exposes its downloadable SARIF artifact for five days. Uploaded findings are also available under the repository's **Security > Code scanning** page to users with the required GitHub access.
 
 This file documents the repository's policy, controls, initial baseline, and expected score movement. It is not a copy of the live report; use the viewer or the latest workflow run for current results.
 
@@ -96,12 +96,12 @@ export GITHUB_AUTH_TOKEN="$(gh auth token)"
 podman run --rm \
   --env GITHUB_AUTH_TOKEN \
   ghcr.io/ossf/scorecard:v5.5.0@sha256:2ad2ced1cc8d080a589fac211944834c0da3dd82a4d7b0e70a642b6be76987d7 \
-  --repo=github.com/datopsis/clickhouse-server-ubi9 \
+  --repo=github.com/datopsis/clickhouse-ubi \
   --show-details
 unset GITHUB_AUTH_TOKEN
 ```
 
-For machine-readable output, add `--format=json`. The public result is available from the [Scorecard viewer](https://securityscorecards.dev/viewer/?uri=github.com/datopsis/clickhouse-server-ubi9) after the publishing workflow completes.
+For machine-readable output, add `--format=json`. The public result is available from the [Scorecard viewer](https://securityscorecards.dev/viewer/?uri=github.com/datopsis/clickhouse-ubi) after the publishing workflow completes.
 
 ## Review cadence
 

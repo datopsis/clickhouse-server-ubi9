@@ -33,4 +33,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Renamed the source repository and planned GHCR image from
+  `clickhouse-server-ubi`/`clickhouse-server-ubi9` to `clickhouse-ubi`, aligning
+  the public identity with the `nginx-ubi` and `postgresql-ubi` projects.
 - The entrypoint now derives primary and additional writable directories from the effective ClickHouse configuration, rejects the misleading `CLICKHOUSE_DATA_DIR` variable, and reports non-root permission failures before server startup.

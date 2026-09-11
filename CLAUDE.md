@@ -9,8 +9,8 @@ This repository builds a security-oriented ClickHouse Server container on Red Ha
 Build and test commands are documented in `README.md`. The primary local verification is:
 
 ```bash
-podman build --format docker --file Containerfile --tag ghcr.io/datopsis/clickhouse-server-ubi9:test .
-CONTAINER_RUNTIME=podman IMAGE=ghcr.io/datopsis/clickhouse-server-ubi9:test bash tests/smoke.sh
+podman build --format docker --file Containerfile --tag ghcr.io/datopsis/clickhouse-ubi:test .
+CONTAINER_RUNTIME=podman IMAGE=ghcr.io/datopsis/clickhouse-ubi:test bash tests/smoke.sh
 ```
 
 ## Git conventions

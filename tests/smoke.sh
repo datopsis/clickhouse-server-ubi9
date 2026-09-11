@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 runtime="${CONTAINER_RUNTIME:-podman}"
-image="${IMAGE:-ghcr.io/datopsis/clickhouse-server-ubi9:test}"
+image="${IMAGE:-ghcr.io/datopsis/clickhouse-ubi:test}"
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 run_id="${RANDOM}-$$"
 prefix="clickhouse-ubi9-smoke-${run_id}"

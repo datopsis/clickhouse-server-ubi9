@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  IMAGE: ghcr.io/datopsis/clickhouse-server-ubi9
+  IMAGE: ghcr.io/datopsis/clickhouse-ubi
 
 jobs:
   release:

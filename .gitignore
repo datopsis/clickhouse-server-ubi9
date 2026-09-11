@@ -6,7 +6,7 @@
 .pre-commit-cache/
 .smoke-secrets.*/
 .tls-rehearsal.*/
-/clickhouse-server-ubi9.spdx.json
+/clickhouse-ubi.spdx.json
 /grype.sarif
 /grype-all.json
 /image.intoto.jsonl

@@ -1,7 +1,7 @@
 # First-release roadmap
 
 This roadmap is the release gate for the first supported
-`clickhouse-server-ubi9` image. Work is organized in small, reviewable packages
+`clickhouse-ubi` image. Work is organized in small, reviewable packages
 whose order follows technical dependencies. Evidence is expected to be
 regenerated as the candidate changes; preserving an older artifact must never
 delay a necessary implementation or security change.

@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 runtime="${CONTAINER_RUNTIME:-podman}"
-target_image="${IMAGE:-ghcr.io/datopsis/clickhouse-server-ubi9:test}"
+target_image="${IMAGE:-ghcr.io/datopsis/clickhouse-ubi:test}"
 scanner_image="${SCAP_SCANNER_IMAGE:-localhost/datopsis-openscap:0.1.82}"
 profile="xccdf_org.datopsis_profile_ubi9_micro_container"
 architecture="${ARCHITECTURE:-$(uname -m)}"
